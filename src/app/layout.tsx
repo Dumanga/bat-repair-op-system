@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const displayFont = Fraunces({
   variable: "--font-display",
@@ -29,7 +30,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${displayFont.variable} ${bodyFont.variable} antialiased`}
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

@@ -1,4 +1,44 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 export default function LoginPage() {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+
+      if (!response.ok || !payload.success) {
+        setErrorMessage(payload.message || "Login failed.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      router.push("/admin");
+    } catch {
+      setErrorMessage("Unable to reach the server. Try again.");
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] text-white">
       <div className="pointer-events-none absolute inset-0">
@@ -53,7 +93,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <form method="post" action="/api/auth/login" className="mt-8 grid gap-5">
+            <form onSubmit={handleSubmit} className="mt-8 grid gap-5">
               <label className="grid gap-2 text-sm text-white/70">
                 Email or username
                 <input
@@ -88,10 +128,16 @@ export default function LoginPage() {
               </div>
               <button
                 type="submit"
-                className="h-12 rounded-xl bg-emerald-400 text-sm font-semibold text-black shadow-[0_10px_30px_-15px_rgba(16,185,129,0.9)] transition hover:bg-emerald-300"
+                className="h-12 rounded-xl bg-emerald-400 text-sm font-semibold text-black shadow-[0_10px_30px_-15px_rgba(16,185,129,0.9)] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-200"
+                disabled={isSubmitting}
               >
-                Sign in
+                {isSubmitting ? "Signing in..." : "Sign in"}
               </button>
+              {errorMessage ? (
+                <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-xs text-rose-100">
+                  {errorMessage}
+                </div>
+              ) : null}
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/60">
                 Use your workshop credentials. Only authorized roles can access
                 repair modules.

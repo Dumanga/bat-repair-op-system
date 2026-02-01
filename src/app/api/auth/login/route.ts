@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { fail, ok } from "@/lib/api/response";
 import type { LoginRequestDTO } from "@/lib/auth/dto";
 import type { LoginResponseDTO } from "@/lib/auth/dto";
 import { prisma } from "@/lib/db";
+import { createSessionToken, hashSessionToken } from "@/lib/auth/session";
 
 const allowedKeys = new Set<keyof LoginRequestDTO>(["identifier", "password"]);
 
@@ -73,8 +73,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const rawToken = createSessionToken();
+    const tokenHash = hashSessionToken(rawToken);
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
 
     await prisma.session.create({

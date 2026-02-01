@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --background: #f3f2ed;
+  --foreground: #1c1f24;
+  --panel: #f9f7f2;
+  --panel-muted: #efece5;
+  --stroke: rgba(32, 41, 59, 0.14);
+  --accent: #0f766e;
+  --accent-soft: rgba(13, 148, 136, 0.12);
+  --text-muted: rgba(30, 41, 59, 0.64);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b0f14;
+  --foreground: #f8fafc;
+  --panel: #0f141b;
+  --panel-muted: #141b23;
+  --stroke: rgba(148, 163, 184, 0.15);
+  --accent: #34d399;
+  --accent-soft: rgba(16, 185, 129, 0.15);
+  --text-muted: rgba(226, 232, 240, 0.65);
 }
 
 @theme inline {
@@ -10,13 +29,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -30,4 +42,19 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display), ui-serif, Georgia, serif;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise-in 0.5s ease-out both;
 }
