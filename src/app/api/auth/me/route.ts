@@ -41,6 +41,13 @@ export async function GET(request: Request) {
           role: session.user.role,
           displayName: session.user.displayName,
           profileImageId: session.user.profileImageId,
+          accessDashboard: session.user.accessDashboard,
+          accessRepairs: session.user.accessRepairs,
+          accessClients: session.user.accessClients,
+          accessBrands: session.user.accessBrands,
+          accessUsers: session.user.accessUsers,
+          accessSms: session.user.accessSms,
+          accessSettings: session.user.accessSettings,
         },
         "Session active."
       ),

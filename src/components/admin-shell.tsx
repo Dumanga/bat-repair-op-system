@@ -10,6 +10,13 @@ type CurrentUser = {
   displayName: string;
   role: "SUPER_ADMIN" | "CASHIER" | "REPAIR_STAFF";
   profileImageId: number;
+  accessDashboard: boolean;
+  accessRepairs: boolean;
+  accessClients: boolean;
+  accessBrands: boolean;
+  accessUsers: boolean;
+  accessSms: boolean;
+  accessSettings: boolean;
 };
 
 const navItems = [
@@ -28,6 +35,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [imageError, setImageError] = useState(false);
+  const visibleNavItems = currentUser
+    ? navItems.filter((item) => {
+        if (currentUser.role === "SUPER_ADMIN") {
+          return true;
+        }
+        switch (item.href) {
+          case "/admin":
+            return currentUser.accessDashboard;
+          case "/admin/repairs":
+            return currentUser.accessRepairs;
+          case "/admin/clients":
+            return currentUser.accessClients;
+          case "/admin/brands":
+            return currentUser.accessBrands;
+          case "/admin/users":
+            return currentUser.accessUsers;
+          case "/admin/sms":
+            return currentUser.accessSms;
+          case "/admin/settings":
+            return currentUser.accessSettings;
+          default:
+            return true;
+        }
+      })
+    : navItems;
 
   useEffect(() => {
     let active = true;
@@ -140,7 +172,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             className="lg:hidden border-t border-[var(--stroke)] bg-[var(--panel)]"
           >
             <nav className="mx-auto grid w-full max-w-[110rem] gap-2 px-6 py-4 text-sm text-[var(--text-muted)]">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
@@ -193,7 +225,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <nav className="mt-6 grid gap-2 text-sm text-[var(--text-muted)]">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

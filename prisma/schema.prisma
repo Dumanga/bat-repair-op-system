@@ -26,6 +26,13 @@ model User {
   passwordHash String
   role         UserRole
   profileImageId Int    @default(1)
+  accessDashboard Boolean @default(false)
+  accessRepairs  Boolean @default(false)
+  accessClients  Boolean @default(false)
+  accessBrands   Boolean @default(false)
+  accessUsers    Boolean @default(false)
+  accessSms      Boolean @default(false)
+  accessSettings Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

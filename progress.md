@@ -189,3 +189,32 @@
 - Added profileImageId to User model, seeded Super Admin with image 1, and exposed /api/auth/me.
 - Wired sidebar profile image to load from session user with gradient fallback on image load error.
 - Ran prisma db push, generate, and seed (stopped dev server to unlock query engine).
+
+## 2026-02-02 16:34
+- Restyled Users page to match Clients/Bat Brands layout with header actions, KPI cards, and list row styling.
+
+## 2026-02-02 16:36
+- Removed KPI cards from the Users page while keeping layout aligned with other modules.
+
+## 2026-02-02 16:37
+- Tightened Users page spacing by wrapping header and list in a single grid with smaller gap.
+
+## 2026-02-02 16:38
+- Restored Users page KPI cards layout per request.
+
+## 2026-02-02 16:50
+- Added user access flags to the User model and seeded Super Admin with full access.
+- Implemented /api/users listing and create with role/access validation and password hashing.
+- Wired Users UI to API with create modal, profile image selector, role dropdown, and access checkboxes.
+- Updated /api/auth/me and nav filtering to respect per-user access selections.
+- Ran prisma db push, generate, and seed (stopped dev server to unlock query engine).
+
+## 2026-02-02 16:54
+- Fixed Users nav rendering crash by moving visibleNavItems inside AdminShell component scope.
+
+## 2026-02-02 16:58
+- Restored Users KPI cards and added API counts for super admins and staff totals.
+
+## 2026-02-02 17:17
+- Added Users edit/delete support with modal reuse and styled confirmation dialog.
+- Disabled edit/delete for Super Admin while allowing updates for other roles.

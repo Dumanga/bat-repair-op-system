@@ -15,6 +15,13 @@ async function main() {
       passwordHash,
       role: "SUPER_ADMIN",
       profileImageId: 1,
+      accessDashboard: true,
+      accessRepairs: true,
+      accessClients: true,
+      accessBrands: true,
+      accessUsers: true,
+      accessSms: true,
+      accessSettings: true,
     },
     create: {
       username,
@@ -22,6 +29,13 @@ async function main() {
       passwordHash,
       role: "SUPER_ADMIN",
       profileImageId: 1,
+      accessDashboard: true,
+      accessRepairs: true,
+      accessClients: true,
+      accessBrands: true,
+      accessUsers: true,
+      accessSms: true,
+      accessSettings: true,
     },
   });
 }
