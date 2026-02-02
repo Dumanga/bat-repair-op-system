@@ -14,12 +14,14 @@ async function main() {
       displayName: "Super Admin",
       passwordHash,
       role: "SUPER_ADMIN",
+      profileImageId: 1,
     },
     create: {
       username,
       displayName: "Super Admin",
       passwordHash,
       role: "SUPER_ADMIN",
+      profileImageId: 1,
     },
   });
 }

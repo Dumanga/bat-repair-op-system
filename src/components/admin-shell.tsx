@@ -1,0 +1,227 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, Settings } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+
+type CurrentUser = {
+  displayName: string;
+  role: "SUPER_ADMIN" | "CASHIER" | "REPAIR_STAFF";
+  profileImageId: number;
+};
+
+const navItems = [
+  { label: "Dashboard", href: "/admin" },
+  { label: "Repairs", href: "/admin/repairs" },
+  { label: "Clients", href: "/admin/clients" },
+  { label: "Bat Brands", href: "/admin/brands" },
+  { label: "Users", href: "/admin/users" },
+  { label: "SMS Portal", href: "/admin/sms" },
+  { label: "Settings", href: "/admin/settings" },
+];
+
+export function AdminShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function loadUser() {
+      try {
+        const response = await fetch("/api/auth/me");
+        const payload = (await response.json()) as {
+          success: boolean;
+          data: CurrentUser | null;
+        };
+        if (active && response.ok && payload.success && payload.data) {
+          setCurrentUser(payload.data);
+          setImageError(false);
+        }
+      } catch {
+        if (active) {
+          setCurrentUser(null);
+        }
+      }
+    }
+
+    loadUser();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <main
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+      suppressHydrationWarning
+    >
+      <div className="relative overflow-hidden border-b border-[var(--stroke)] bg-[var(--panel)]">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-[var(--accent-soft)] blur-3xl" />
+          <div className="absolute right-[-12%] top-[-25%] h-80 w-80 rounded-full bg-orange-400/20 blur-3xl" />
+          <div className="absolute bottom-[-30%] left-1/2 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+        </div>
+        <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-col gap-4 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
+              Admin Console
+            </p>
+            <h1 className="text-2xl font-semibold sm:text-3xl">
+              Doctor of Bat Operations
+            </h1>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">
+              Live status of workshop repairs, staff, and deliveries.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="flex h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)] lg:hidden"
+              onClick={() => setMobileNavOpen((open) => !open)}
+              aria-expanded={mobileNavOpen}
+              aria-controls="admin-mobile-nav"
+            >
+              {mobileNavOpen ? "Close" : "Menu"}
+              <Menu className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className="flex h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)] lg:hidden"
+              onClick={() => setMobileControlsOpen((open) => !open)}
+              aria-expanded={mobileControlsOpen}
+              aria-controls="admin-mobile-controls"
+            >
+              {mobileControlsOpen ? "Close" : "Settings"}
+              <Settings className="h-4 w-4" />
+            </button>
+            <div className="hidden lg:flex">
+              <ThemeToggle />
+            </div>
+            <div className="hidden h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] lg:flex">
+              Super Admin
+              <span className="inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
+            </div>
+            <form action="/auth/logout" method="post" className="hidden lg:block">
+              <button className="h-10 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-600 transition hover:bg-rose-500/20">
+                Logout
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {mobileControlsOpen ? (
+          <div
+            id="admin-mobile-controls"
+            className="lg:hidden border-t border-[var(--stroke)] bg-[var(--panel)]"
+          >
+            <div className="mx-auto flex w-full max-w-[110rem] flex-wrap items-center gap-3 px-6 py-4 text-sm text-[var(--text-muted)]">
+              <ThemeToggle />
+              <div className="flex h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)]">
+                Super Admin
+                <span className="inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
+              </div>
+              <form action="/auth/logout" method="post">
+                <button className="h-10 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-600 transition hover:bg-rose-500/20">
+                  Logout
+                </button>
+              </form>
+            </div>
+          </div>
+        ) : null}
+
+        {mobileNavOpen ? (
+          <div
+            id="admin-mobile-nav"
+            className="lg:hidden border-t border-[var(--stroke)] bg-[var(--panel)]"
+          >
+            <nav className="mx-auto grid w-full max-w-[110rem] gap-2 px-6 py-4 text-sm text-[var(--text-muted)]">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left transition ${
+                      isActive
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "hover:bg-[var(--panel-muted)]"
+                    }`}
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    <span>{item.label}</span>
+                    {item.label === "Repairs" ? (
+                      <span className="rounded-full bg-[var(--panel-muted)] px-2 py-1 text-[10px] text-[var(--text-muted)]">
+                        38
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mx-auto grid w-full max-w-[110rem] gap-6 px-6 py-8 lg:grid-cols-[240px_1fr]">
+        <aside className="hidden rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-5 lg:block">
+          <div className="flex items-center gap-3">
+            {currentUser && !imageError ? (
+              <div className="h-12 w-12 overflow-hidden rounded-2xl border border-[var(--stroke)] bg-[var(--panel)]">
+                <img
+                  src={`/assets/profile-imgs/${currentUser.profileImageId}.png`}
+                  alt={`${currentUser.displayName} profile`}
+                  className="h-full w-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              </div>
+            ) : (
+              <div className="h-12 w-12 rounded-2xl border border-[var(--stroke)] bg-gradient-to-br from-emerald-400/70 via-emerald-300/50 to-orange-400/60" />
+            )}
+            <div>
+              <p className="text-sm font-semibold">
+                {currentUser?.displayName ?? "Super Admin"}
+              </p>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                Online
+              </div>
+            </div>
+          </div>
+          <nav className="mt-6 grid gap-2 text-sm text-[var(--text-muted)]">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3 transition ${
+                    isActive
+                      ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                      : "hover:bg-[var(--panel-muted)]"
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  {item.label === "Repairs" ? (
+                    <span className="rounded-full bg-[var(--panel-muted)] px-2 py-1 text-[10px] text-[var(--text-muted)]">
+                      38
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mt-8 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-xs text-[var(--text-muted)]">
+            Next audit sync in <span className="text-white">3 hrs</span>
+          </div>
+        </aside>
+
+        <section className="grid gap-6">{children}</section>
+      </div>
+    </main>
+  );
+}
