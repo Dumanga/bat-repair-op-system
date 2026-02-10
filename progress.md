@@ -218,3 +218,11 @@
 ## 2026-02-02 17:17
 - Added Users edit/delete support with modal reuse and styled confirmation dialog.
 - Disabled edit/delete for Super Admin while allowing updates for other roles.
+
+## 2026-02-03 21:34
+- Added hydration warning suppression on AdminShell layout wrappers to mitigate extension-injected attribute mismatches.
+
+## 2026-02-10 11:05
+- Added operational portal routes under /operation with copied admin pages.
+- Redirected legacy /auth/login, /auth/logout, /admin/*, and root / to /operation equivalents.
+- Updated admin shell navigation and logout to use /operation paths.

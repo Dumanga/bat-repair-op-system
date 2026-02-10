@@ -20,13 +20,13 @@ type CurrentUser = {
 };
 
 const navItems = [
-  { label: "Dashboard", href: "/admin" },
-  { label: "Repairs", href: "/admin/repairs" },
-  { label: "Clients", href: "/admin/clients" },
-  { label: "Bat Brands", href: "/admin/brands" },
-  { label: "Users", href: "/admin/users" },
-  { label: "SMS Portal", href: "/admin/sms" },
-  { label: "Settings", href: "/admin/settings" },
+  { label: "Dashboard", href: "/operation/admin" },
+  { label: "Repairs", href: "/operation/admin/repairs" },
+  { label: "Clients", href: "/operation/admin/clients" },
+  { label: "Bat Brands", href: "/operation/admin/brands" },
+  { label: "Users", href: "/operation/admin/users" },
+  { label: "SMS Portal", href: "/operation/admin/sms" },
+  { label: "Settings", href: "/operation/admin/settings" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -41,19 +41,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           return true;
         }
         switch (item.href) {
-          case "/admin":
+          case "/operation/admin":
             return currentUser.accessDashboard;
-          case "/admin/repairs":
+          case "/operation/admin/repairs":
             return currentUser.accessRepairs;
-          case "/admin/clients":
+          case "/operation/admin/clients":
             return currentUser.accessClients;
-          case "/admin/brands":
+          case "/operation/admin/brands":
             return currentUser.accessBrands;
-          case "/admin/users":
+          case "/operation/admin/users":
             return currentUser.accessUsers;
-          case "/admin/sms":
+          case "/operation/admin/sms":
             return currentUser.accessSms;
-          case "/admin/settings":
+          case "/operation/admin/settings":
             return currentUser.accessSettings;
           default:
             return true;
@@ -92,7 +92,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
       suppressHydrationWarning
     >
-      <div className="relative overflow-hidden border-b border-[var(--stroke)] bg-[var(--panel)]">
+      <div
+        className="relative overflow-hidden border-b border-[var(--stroke)] bg-[var(--panel)]"
+        suppressHydrationWarning
+      >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-[var(--accent-soft)] blur-3xl" />
           <div className="absolute right-[-12%] top-[-25%] h-80 w-80 rounded-full bg-orange-400/20 blur-3xl" />
@@ -138,7 +141,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               Super Admin
               <span className="inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
             </div>
-            <form action="/auth/logout" method="post" className="hidden lg:block">
+            <form action="/operation/logout" method="post" className="hidden lg:block">
               <button className="h-10 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-600 transition hover:bg-rose-500/20">
                 Logout
               </button>
@@ -157,7 +160,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 Super Admin
                 <span className="inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
               </div>
-              <form action="/auth/logout" method="post">
+              <form action="/operation/logout" method="post">
                 <button className="h-10 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-600 transition hover:bg-rose-500/20">
                   Logout
                 </button>
@@ -199,7 +202,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         ) : null}
       </div>
 
-      <div className="mx-auto grid w-full max-w-[110rem] gap-6 px-6 py-8 lg:grid-cols-[240px_1fr]">
+      <div
+        className="mx-auto grid w-full max-w-[110rem] gap-6 px-6 py-8 lg:grid-cols-[240px_1fr]"
+        suppressHydrationWarning
+      >
         <aside className="hidden rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-5 lg:block">
           <div className="flex items-center gap-3">
             {currentUser && !imageError ? (
