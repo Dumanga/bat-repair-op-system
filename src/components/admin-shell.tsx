@@ -25,6 +25,7 @@ const navItems = [
   { label: "Clients", href: "/operation/admin/clients" },
   { label: "Bat Brands", href: "/operation/admin/brands" },
   { label: "Users", href: "/operation/admin/users" },
+  { label: "Stores", href: "/operation/admin/stores" },
   { label: "SMS Portal", href: "/operation/admin/sms" },
   { label: "Settings", href: "/operation/admin/settings" },
 ];
@@ -51,6 +52,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             return currentUser.accessBrands;
           case "/operation/admin/users":
             return currentUser.accessUsers;
+          case "/operation/admin/stores":
+            return true;
           case "/operation/admin/sms":
             return currentUser.accessSms;
           case "/operation/admin/settings":

@@ -26,8 +26,14 @@ type User = {
   username: string;
   displayName: string;
   role: "SUPER_ADMIN" | "CASHIER" | "REPAIR_STAFF";
+  system: "OPERATION" | "ACCOUNTING" | "BOTH";
   profileImageId: number;
   createdAt: string;
+  storeId: string | null;
+  store: {
+    id: string;
+    name: string;
+  } | null;
   accessDashboard: boolean;
   accessRepairs: boolean;
   accessClients: boolean;
@@ -44,6 +50,15 @@ type UserResponse = {
   staffCount: number;
   page: number;
   pageSize: number;
+};
+
+type StoreOption = {
+  id: string;
+  name: string;
+};
+
+type StoreResponse = {
+  items: StoreOption[];
 };
 
 const profileImages = [1, 2, 3, 4, 5];
@@ -77,6 +92,9 @@ export default function UsersPage() {
   const [accessSelected, setAccessSelected] = useState<AccessKey[]>([
     "dashboard",
   ]);
+  const [stores, setStores] = useState<StoreOption[]>([]);
+  const [storeId, setStoreId] = useState("");
+  const [storeOpen, setStoreOpen] = useState(false);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(total / pageSize));
@@ -141,6 +159,43 @@ export default function UsersPage() {
     };
   }, [loadUsers, reloadToken]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadStores() {
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          pageSize: "200",
+        });
+        const response = await fetch(`/api/stores?${params.toString()}`);
+        const payload = (await response.json()) as {
+          success: boolean;
+          data: StoreResponse | null;
+          message: string;
+        };
+
+        if (!response.ok || !payload.success || !payload.data) {
+          throw new Error(payload.message || "Unable to load stores.");
+        }
+
+        if (active) {
+          setStores(payload.data.items);
+        }
+      } catch (err) {
+        if (active) {
+          setError(
+            err instanceof Error ? err.message : "Unable to load stores."
+          );
+        }
+      }
+    }
+
+    loadStores();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function toggleAccess(key: AccessKey) {
     setAccessSelected((prev) => {
       if (prev.includes(key)) {
@@ -170,6 +225,8 @@ export default function UsersPage() {
     setRoleOpen(false);
     setProfileImageId(1);
     setAccessSelected(["dashboard"]);
+    setStoreId("");
+    setStoreOpen(false);
     setEditingUser(null);
   }
 
@@ -189,6 +246,10 @@ export default function UsersPage() {
     }
     if (accessSelected.length === accessOptions.length) {
       setError("All access cannot be selected. Use Super Admin instead.");
+      return;
+    }
+    if (!storeId) {
+      setError("Store assignment is required.");
       return;
     }
     void saveUser();
@@ -211,6 +272,7 @@ export default function UsersPage() {
           password: password.trim(),
           role,
           profileImageId,
+          storeId,
           access: accessSelected,
         }),
       });
@@ -376,7 +438,7 @@ export default function UsersPage() {
             items.map((user) => (
               <div
                 key={user.id}
-                className="grid items-center gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-3 sm:grid-cols-[1.5fr_0.7fr_0.6fr_0.6fr]"
+                className="grid items-center gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-3 sm:grid-cols-[1.5fr_0.8fr_0.7fr_0.6fr_0.6fr]"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-2xl border border-[var(--stroke)] bg-[var(--panel)]">
@@ -397,6 +459,11 @@ export default function UsersPage() {
                   {user.role.replace("_", " ")}
                 </div>
                 <div className="text-xs text-[var(--text-muted)]">
+                  {user.role === "SUPER_ADMIN"
+                    ? "All Stores"
+                    : user.store?.name ?? "-"}
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
                   {user.role === "SUPER_ADMIN" ? "All access" : "Custom access"}
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
@@ -414,6 +481,8 @@ export default function UsersPage() {
                       setRole(user.role === "SUPER_ADMIN" ? "CASHIER" : user.role);
                       setRoleOpen(false);
                       setProfileImageId(user.profileImageId);
+                      setStoreId(user.storeId ?? "");
+                      setStoreOpen(false);
                       setAccessSelected(buildAccessList(user));
                       setError(null);
                       setOpen(true);
@@ -576,6 +645,61 @@ export default function UsersPage() {
                   </div>
                 </div>
               </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-2 text-sm text-[var(--text-muted)]">
+                  <span>
+                    Store <span className="text-rose-400">*</span>
+                  </span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
+                      onClick={() => setStoreOpen((prev) => !prev)}
+                    >
+                      <span>
+                        {stores.find((store) => store.id === storeId)?.name ??
+                          "Select store"}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)]">v</span>
+                    </button>
+                    {storeOpen ? (
+                      <div className="absolute left-0 right-0 z-10 mt-2 max-h-56 overflow-auto rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
+                        {stores.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                            No stores available.
+                          </div>
+                        ) : (
+                          stores.map((store) => (
+                            <button
+                              key={store.id}
+                              type="button"
+                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                store.id === storeId
+                                  ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
+                                  : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
+                              }`}
+                              onClick={() => {
+                                setStoreId(store.id);
+                                setStoreOpen(false);
+                                if (error) {
+                                  setError(null);
+                                }
+                              }}
+                            >
+                              <span>{store.name}</span>
+                              {store.id === storeId ? (
+                                <span className="text-xs text-[var(--text-muted)]">
+                                  Selected
+                                </span>
+                              ) : null}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
 
               <div className="grid gap-3">
                 <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
@@ -663,6 +787,7 @@ export default function UsersPage() {
                     !displayName.trim() ||
                     !username.trim() ||
                     (!editingUser && !password.trim()) ||
+                    !storeId ||
                     accessSelected.length === 0 ||
                     accessSelected.length === accessOptions.length
                   }

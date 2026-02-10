@@ -39,8 +39,10 @@ export async function GET(request: Request) {
         {
           userId: session.user.id,
           role: session.user.role,
+          system: session.user.system,
           displayName: session.user.displayName,
           profileImageId: session.user.profileImageId,
+          storeId: session.user.storeId,
           accessDashboard: session.user.accessDashboard,
           accessRepairs: session.user.accessRepairs,
           accessClients: session.user.accessClients,

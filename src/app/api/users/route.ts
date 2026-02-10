@@ -39,22 +39,33 @@ export async function GET(request: Request) {
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
     const search = (searchParams.get("search") ?? "").trim();
 
+    const baseWhere = {
+      system: {
+        in: ["OPERATION", "BOTH"],
+      },
+    };
+
     const where = search
       ? {
-          OR: [
+          AND: [
+            baseWhere,
             {
-              displayName: {
-                contains: search,
-              },
-            },
-            {
-              username: {
-                contains: search,
-              },
+              OR: [
+                {
+                  displayName: {
+                    contains: search,
+                  },
+                },
+                {
+                  username: {
+                    contains: search,
+                  },
+                },
+              ],
             },
           ],
         }
-      : {};
+      : baseWhere;
 
     const [items, total, superAdminCount, staffCount] = await Promise.all([
       prisma.user.findMany({
@@ -67,8 +78,16 @@ export async function GET(request: Request) {
           username: true,
           displayName: true,
           role: true,
+          system: true,
           profileImageId: true,
           createdAt: true,
+          storeId: true,
+          store: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           accessDashboard: true,
           accessRepairs: true,
           accessClients: true,
@@ -79,8 +98,10 @@ export async function GET(request: Request) {
         },
       }),
       prisma.user.count({ where }),
-      prisma.user.count({ where: { role: "SUPER_ADMIN" } }),
-      prisma.user.count({ where: { role: { in: ["CASHIER", "REPAIR_STAFF"] } } }),
+      prisma.user.count({ where: { ...baseWhere, role: "SUPER_ADMIN" } }),
+      prisma.user.count({
+        where: { ...baseWhere, role: { in: ["CASHIER", "REPAIR_STAFF"] } },
+      }),
     ]);
 
     return NextResponse.json(
@@ -113,6 +134,7 @@ export async function POST(request: Request) {
       role?: unknown;
       profileImageId?: unknown;
       access?: unknown;
+      storeId?: unknown;
     };
 
     const username =
@@ -125,6 +147,7 @@ export async function POST(request: Request) {
     const profileImageId =
       typeof body.profileImageId === "number" ? body.profileImageId : null;
     const access = sanitizeAccess(body.access);
+    const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
 
     if (!username || !displayName || !password) {
       return NextResponse.json(
@@ -161,6 +184,25 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!storeId) {
+      return NextResponse.json(
+        fail("Store assignment is required.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return NextResponse.json(
+        fail("Selected store is invalid.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
 
     const created = await prisma.user.create({
@@ -169,7 +211,9 @@ export async function POST(request: Request) {
         displayName,
         passwordHash,
         role,
+        system: "OPERATION",
         profileImageId,
+        storeId,
         accessDashboard: access.includes("dashboard"),
         accessRepairs: access.includes("repairs"),
         accessClients: access.includes("clients"),
@@ -219,6 +263,7 @@ export async function PATCH(request: Request) {
       role?: unknown;
       profileImageId?: unknown;
       access?: unknown;
+      storeId?: unknown;
     };
 
     const id = typeof body.id === "string" ? body.id.trim() : "";
@@ -232,6 +277,7 @@ export async function PATCH(request: Request) {
     const profileImageId =
       typeof body.profileImageId === "number" ? body.profileImageId : null;
     const access = sanitizeAccess(body.access);
+    const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
 
     if (!id) {
       return NextResponse.json(
@@ -275,11 +321,31 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (!storeId) {
+      return NextResponse.json(
+        fail("Store assignment is required.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true },
+    });
+
+    if (!store) {
+      return NextResponse.json(
+        fail("Selected store is invalid.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+
     const updateData: Record<string, unknown> = {
       username,
       displayName,
       role,
       profileImageId,
+      storeId,
       accessDashboard: access.includes("dashboard"),
       accessRepairs: access.includes("repairs"),
       accessClients: access.includes("clients"),

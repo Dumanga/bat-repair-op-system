@@ -230,3 +230,33 @@
 ## 2026-02-10 11:24
 - Removed /admin and /auth route files to avoid duplicated UI/routes.
 - Added middleware redirects for /admin/*, /auth/login, and /auth/logout to /operation paths.
+
+## 2026-02-10 22:17
+- Added Stores nav item and operational Stores page with sample UI and modal.
+- Added required field validation/disable-save logic and custom status dropdown styling.
+- Simplified Stores KPIs to Active Stores and Total Staff only.
+- Removed the top-right Close button from the Store create modal.
+
+## 2026-02-10 22:22
+- Added Store model and status enum to Prisma schema.
+- Implemented /api/stores CRUD with validation, search, pagination, and KPI counts.
+- Wired Stores UI to API with fetch, pagination, and create modal submission.
+- Ran `npx prisma db push`; Prisma generate failed due to locked query engine (stop dev server and rerun `npx prisma generate`).
+
+## 2026-02-10 22:23
+- Split Stores UI error states for list load vs form submission.
+
+## 2026-02-10 22:29
+- Added Stores edit and delete actions with modal flows wired to /api/stores.
+
+## 2026-02-10 22:31
+- Disabled Store save button when editing with no changes.
+
+## 2026-02-10 22:39
+- Added User system enum + store assignment fields to Prisma schema and super admin seed.
+- Updated Users API to require store assignment and return store details for operational system users.
+- Added store dropdown to Users UI with store listing column and validation.
+- Ran `npx prisma db push`; Prisma generate failed due to locked query engine (stop dev server and rerun `npx prisma generate`).
+
+## 2026-02-11 00:09
+- Added staff counts per store in Stores API and UI (excluding Super Admin).

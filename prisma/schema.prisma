@@ -19,12 +19,24 @@ enum LoyaltyTier {
   GOLD
 }
 
+enum StoreStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum UserSystem {
+  OPERATION
+  ACCOUNTING
+  BOTH
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
   displayName  String
   passwordHash String
   role         UserRole
+  system       UserSystem @default(OPERATION)
   profileImageId Int    @default(1)
   accessDashboard Boolean @default(false)
   accessRepairs  Boolean @default(false)
@@ -33,10 +45,15 @@ model User {
   accessUsers    Boolean @default(false)
   accessSms      Boolean @default(false)
   accessSettings Boolean @default(false)
+  storeId     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   sessions     Session[]
+  store        Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([system])
+  @@index([storeId])
 }
 
 model Session {
@@ -65,4 +82,21 @@ model Client {
   updatedAt DateTime    @updatedAt
 
   @@index([name])
+}
+
+model Store {
+  id        String      @id @default(cuid())
+  name      String
+  code      String      @unique
+  city      String
+  status    StoreStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  users     User[]
+
+  @@index([name])
+  @@index([city])
+  @@index([status])
 }
