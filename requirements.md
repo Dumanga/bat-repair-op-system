@@ -1,14 +1,40 @@
 # Requirements Specification (Codex Ready)
-## Cricket Bat Repair Shop – Operations Management System
+## Cricket Bat Repair Shop – Operations + Accounting System
 
-## Project Name - Doctor of Bat
+**Version:** 1.0  
+**Date:** 2026-02-10  
+
+---
+
+## 0. Execution Rule (Critical)
+
+### 0.1 Must read current project progress
+- A root-level file **`progress.md`** exists and is maintained as the live status tracker.
+- **Before implementing any new work**, developers MUST read `progress.md` to understand:
+  - What is already implemented
+  - What is partially implemented
+  - What is pending
+
+### 0.2 Delivery Order (Strict)
+1. **Complete Operational Management System**
+2. Proceed to **Accounting Portal** only after Operational completion
 
 ---
 
 ## 1. Project Overview
-This document defines the **final, confirmed, and approved requirements** for the Cricket Bat Repair Shop Operations Management System. This document is intended to be used as the **single source of truth for Codex kickoff and development**.
 
-The primary goal is to digitize repair operations while maintaining compatibility with existing physical workflows, ensuring stability, correctness, and minimal runtime errors.
+This document defines the **final, confirmed, and approved requirements** for the Cricket Bat Repair Shop system.
+
+The system consists of:
+- **Operational Management Portal**
+- **Accounting Portal**
+
+Both portals:
+- Run inside a **single Next.js application**
+- Use a **single shared MySQL database**
+- Have **separate logins, roles, and UIs**
+
+This document is the **single source of truth for Codex and development**.
 
 ---
 
@@ -16,37 +42,22 @@ The primary goal is to digitize repair operations while maintaining compatibilit
 
 ### 2.1 Database
 - **MySQL must be used in all environments**
-  - Development: Localhost MySQL
+  - Local development: MySQL
   - Production: Railway.app (Singapore)
-- No alternative database engines allowed
+- **Single shared database/schema**
+- No alternative DB engines allowed
 
 ### 2.2 Environment & Secrets
-- All credentials must be stored in `.env` / `.env.local`
-- `.env` files must not be committed to GitHub
-- A `.env.example` with placeholders must exist
+- Secrets stored in `.env` / `.env.local`
+- `.env` files must NOT be committed
+- `.env.example` must exist
 
 ### 2.3 Stability Requirements
-- Database schema must be stable
-- Nullable vs non-nullable fields must be explicitly decided
-- Correct data types must be used
-- APIs must not throw unhandled errors
-- CORS and internal server errors must be handled safely
-
-## 2.4 Mobile Responsiveness (Mandatory)
-- The entire application must be fully **responsive** and usable on:
-  - Mobile phones
-  - Tablets
-  - Laptops / desktops
-- Mobile usability is a **non-negotiable requirement** (staff should be able to operate the system from a phone if needed).
-- All main screens must be designed mobile-first and then scaled up for larger screens:
-  - Dashboard
-  - Repairs (list + create/edit)
-  - Brands
-  - Clients
-  - Users
-  - SMS Portal
-- No UI feature should be desktop-only unless explicitly approved.
-
+- Stable DB schema
+- Explicit nullable vs non-nullable fields
+- Correct data types
+- No unhandled API errors
+- Safe CORS and internal error handling
 
 ---
 
@@ -56,213 +67,25 @@ The primary goal is to digitize repair operations while maintaining compatibilit
 |------|-----------|
 | Frontend | Next.js + TypeScript |
 | UI | Tailwind CSS |
-| Backend | Next.js API / Route Handlers |
+| Backend | Next.js Route Handlers |
 | ORM | Prisma |
 | Database | MySQL |
-| Hosting | Vercel (App), Railway.app (DB – SG) |
+| Hosting | Vercel / AWS Lightsail / DigitalOcean |
+| DB Hosting | Railway.app (SG) |
 
 ---
 
-## 4. Development Workflow Rules (Mandatory)
+## 4. Development Workflow Rules
 
-### 4.1 UI‑First, DTO‑Driven Development
-- Build UI **first** using mock data
-- Maintain a **single source of truth** via TypeScript DTOs
+### 4.1 UI‑First, DTO‑Driven
+- UI built first using mock data
+- DTOs are the single source of truth
+- New fields must:
+  1. Be added to DTO
+  2. Be added to mock data
+  3. Have validation + justification
 
-Example DTOs:
-- `RepairJobDTO`
-- `ClientDTO`
-- `RepairStatusHistoryDTO`
-- `TrackingViewDTO`
-
-### 4.2 Field Discipline
-- Any new field discovered during UI design:
-  1. Must be added to DTO
-  2. Must be added to mock data
-  3. Must include required/optional reason, default, and validation
-- Prisma schema and migrations are generated **only after UI is finalized**
-- Do not invent fields or mark optional without justification
-
----
-
-## 5. Authentication & Authorization
-- Role‑based access control (RBAC)
-- Roles (final):
-  - **Super Admin**
-  - **Cashier**
-  - **Repair Staff**
-- Only **Super Admin** credentials are manually seeded
-- All other users (Cashier, Repair Staff) are created through the system by Super Admin
-- All staff/admin routes are protected
-- Customer tracking route is public but token‑protected
-
-### 5.1 Role Permissions (High Level)
-- **Super Admin**: Full access to all modules and operations
-- **Cashier**: Same operational access as Super Admin for day-to-day work (UI may render differently, but permissions are equivalent)
-- **Repair Staff**: Restricted access
-  - Can access **Repairs** module only
-  - Can update repair status according to allowed transitions
-  - Cannot access Brands, Clients, Users, SMS Portal, or Dashboard KPIs (unless explicitly allowed later)
-
----
-
-## 6. Core Domain: Repair Jobs
-
-### 6.1 Repair Statuses (Enum – Final)
-1. `PENDING`
-2. `PROCESSING`
-3. `REPAIR_COMPLETED`
-4. `DELIVERED`
-
-Rules:
-- Status transitions must be validated server‑side
-- Once `DELIVERED`, customer tracking link is disabled
-
----
-
-### 6.2 Status Transition Validation
-Allowed transitions:
-- `PENDING → PROCESSING`
-- `PROCESSING → REPAIR_COMPLETED`
-- `REPAIR_COMPLETED → DELIVERED`
-
-Invalid transitions must be rejected with clear errors.
-
----
-
-### 6.3 Repair Creation (Happy Path)
-
-Fields:
-- Manual bill number (required)
-- Client (name + mobile)
-- Bat brand (dropdown)
-- Intake type (In‑store / Courier)
-- Store location
-- Total amount
-- Advance amount
-- Estimated delivery date
-
-Rules:
-- Manual bill number maps physical bill to system
-- Bill number must be **unique or uniquely scoped** (indexed)
-- Delivery date picker must show number of scheduled deliveries per day
-
-On successful creation:
-- Repair record is created atomically
-- Tracking token is generated and stored (hashed)
-- SMS entry is queued (not sent inline)
-
----
-
-## 7. Delivery Date & Postponement
-
-- Repairs can be rescheduled any number of times
-- Boolean field `isPostponed`:
-  - Default: false
-  - Set to true when delivery date changes after creation
-- No limits or counters for postponement
-- Used only for admin visibility
-
----
-
-## 8. Tracking Token Rules
-
-- Token must be **short** (SMS cost consideration)
-- Use random short token (8–12 chars)
-- Store only **hashed token** in DB
-- Tracking disabled when:
-  - Status becomes `DELIVERED`
-
----
-
-## 9. SMS Architecture (Phase‑Ready)
-
-### 9.1 SMS Queue / Outbox Table
-
-Fields:
-- repairId
-- recipient
-- message
-- type
-- status (PENDING / SENT / FAILED)
-- scheduledFor
-- sentAt
-- providerResponse
-
-Rules:
-- SMS sending occurs **after DB commit**
-- System must support:
-  - Manual sending
-  - Automatic sending
-  - Hybrid model (decided later)
-
-### 9.2 SMS History
-- Repair must store:
-  - Last SMS sent
-  - SMS content
-  - Timestamp
-
----
-
-## 10. Dashboard & Modules
-
-### 10.1 Dashboard
-- Modern left‑sidebar layout
-- KPI cards
-- Today’s deliveries
-- Date‑based filtering
-
-### 10.2 Modules
-- **Dashboard** (Super Admin, Cashier)
-  - KPI cards
-  - Today’s deliveries
-  - Date-based filtering
-- **Repairs**
-  - Super Admin, Cashier: create, edit, reschedule, status update
-  - Repair Staff: view assigned/visible repairs and **status update only**
-- **Bat Brands** (Super Admin, Cashier): create/edit
-- **Clients** (Super Admin, Cashier): create/edit, loyalty tier management
-- **Users** (Super Admin only)
-- **SMS Portal** (Super Admin, Cashier): view & send pending SMS
-
----
-
-## 11. Pagination & Performance
-
-- Pagination is mandatory (default: 10 items/page)
-- Default sorting:
-  - Repairs: estimatedDeliveryDate ASC, createdAt ASC
-- Select only required fields
-- Index frequently queried columns
-
----
-
-## 12. Audit Trail (Mandatory)
-
-Create audit log for:
-- Repair creation
-- Status changes
-- Delivery reschedules
-- Location changes
-- SMS events
-
-Audit fields:
-- repairId
-- eventType
-- oldValue (JSON)
-- newValue (JSON)
-- performedBy
-- timestamp (UTC)
-
----
-
-## 13. API Standards
-
-- Strict input validation on all endpoints
-- Reject unknown fields
-- Use enums for constrained values
-
-### 13.1 Response Shape (Mandatory)
+### 4.2 API Response Shape (Mandatory)
 ```json
 {
   "success": true,
@@ -272,30 +95,244 @@ Audit fields:
 }
 ```
 
-- Correct HTTP status codes
-- Clear, field‑level error messages
+- Correct HTTP codes
+- Reject unknown fields
+- Clear field-level errors
+- Enums for constrained values
 
 ---
 
-## 14. Date & Time Rules
+## 5. Portal Architecture
 
-- Store all timestamps in UTC
-- Never store local time strings
-- UI handles timezone conversion
+### 5.1 Routes (Mandatory)
+
+**Operational Portal**
+- `/operation/login`
+- `/operation/admin`
+
+**Accounting Portal**
+- `/accounting/login`
+- `/accounting/admin`
+
+> Existing `/admin/login` MUST be refactored.
+
+### 5.2 Separate UIs
+- Operational UI ≠ Accounting UI
+- Accounting UI uses **light theme**
+- Brand colors:
+  - `#ff7101`
+  - `#2c2a2c`
+  - `#ffffff`
 
 ---
 
-## 15. Deletion Policy
+## 6. Authentication & Authorization
 
-- Repair jobs are never hard‑deleted
-- Delivered jobs are hidden via UI filtering only
+### 6.1 Operational Roles
+- Super Admin
+- Cashier
+- Repair Staff
+
+### 6.2 Accounting Roles
+- Super Admin
+- Accountant
+- Data Entry
+
+### 6.3 User Table Strategy
+- Single `users` table
+- Add `portal/system` column (`OPERATION` / `ACCOUNTING`)
+- Login screens must restrict access by portal
+
+### 6.4 Seeding
+- Only Super Admin is manually seeded
+- All others created via system
 
 ---
 
-## 16. Acceptance
-This document is approved and serves as the **authoritative reference for development**.
+## 7. Stores / Locations (CRITICAL)
+
+### 7.1 Stores Module
+- Shared across both portals
+- Central list of locations
+
+### 7.2 User Assignment
+- Each non-super-admin user assigned to one store
+- Super Admin sees all stores
+
+### 7.3 Store‑Scoped Data
+- All records MUST include:
+  - `storeId`
+  - `createdBy`
+
+Applies to:
+- Repairs
+- PO / GRN / Invoices
+- Inventory changes
+- Payments
+- Returns
 
 ---
 
-*End of Codex‑ready Requirements*
+## 8. Current Implementation Status
 
+Already completed (Operational):
+- Login + Dashboard UI
+- Brands module (UI + API + DB)
+- Clients module (CRUD + DB)
+- Users module
+- RBAC implementation
+
+---
+
+# PART A — OPERATIONAL MANAGEMENT SYSTEM
+
+## 9. Repair Jobs
+
+### 9.1 Status Enum
+- `PENDING`
+- `PROCESSING`
+- `REPAIR_COMPLETED`
+- `DELIVERED`
+
+### 9.2 Allowed Transitions
+- PENDING → PROCESSING
+- PROCESSING → REPAIR_COMPLETED
+- REPAIR_COMPLETED → DELIVERED
+
+### 9.3 Repair Creation Fields
+- Manual bill number (unique)
+- Client
+- Bat brand
+- Intake type
+- Store
+- Total amount
+- Advance amount
+- Estimated delivery date
+
+On success:
+- Atomic DB write
+- Tracking token generated (hashed)
+- SMS queued
+
+### 9.4 Postponement
+- Unlimited reschedules
+- `isPostponed` boolean
+
+### 9.5 Tracking Token
+- 8–12 chars
+- Hashed in DB
+- Disabled after delivery
+
+### 9.6 Deletion
+- No hard deletes
+- Delivered hidden via UI only
+
+---
+
+## 10. SMS System
+
+### 10.1 SMS Outbox
+- repairId
+- recipient
+- message
+- type
+- status
+- scheduledFor
+- sentAt
+- providerResponse
+
+### 10.2 SMS History
+- Last SMS content
+- Timestamp
+
+---
+
+## 11. Audit Trail (Mandatory)
+
+Log:
+- Repair creation
+- Status changes
+- Reschedules
+- Location changes
+- SMS events
+
+Fields:
+- repairId
+- eventType
+- oldValue
+- newValue
+- performedBy
+- timestamp (UTC)
+
+---
+
+## 12. Operational Modules
+- Dashboard
+- Repairs
+- Bat Brands
+- Clients
+- Users
+- SMS Portal
+
+---
+
+# PART B — ACCOUNTING PORTAL
+
+## 13. Sidebar Modules
+1. Suppliers / Vendors
+2. Customers / Clients
+3. Inventory
+4. Chart of Accounts
+5. Settings
+
+---
+
+## 14. Suppliers / Vendors
+- Vendor CRUD
+- Purchase Orders
+- PO History
+- GRN
+- Goods Return
+- Supplier Payments
+
+---
+
+## 15. Customers / Clients
+- Shared client DB
+- Quotations
+- Invoices/Bills
+- Customer Returns
+- Customer Payments
+
+### 15.1 Mark as Paid Flow
+- Default: UNPAID
+- Select payment method
+- Record paid timestamp + method
+
+---
+
+## 16. Inventory
+
+### 16.1 Product Master
+- Name
+- Code
+- Initial buying price
+- Initial selling price
+- Specification / description
+
+### 16.2 Stock Sources
+- GRN (IN)
+- Invoice (OUT)
+- Returns
+- Material Issue Note (internal use)
+
+---
+
+## 17. Performance
+- Pagination (10/page)
+- Indexed columns
+- Minimal selects
+
+---
+
+**END OF REQUIREMENTS**
