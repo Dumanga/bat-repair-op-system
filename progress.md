@@ -226,3 +226,7 @@
 - Added operational portal routes under /operation with copied admin pages.
 - Redirected legacy /auth/login, /auth/logout, /admin/*, and root / to /operation equivalents.
 - Updated admin shell navigation and logout to use /operation paths.
+
+## 2026-02-10 11:24
+- Removed /admin and /auth route files to avoid duplicated UI/routes.
+- Added middleware redirects for /admin/*, /auth/login, and /auth/logout to /operation paths.
