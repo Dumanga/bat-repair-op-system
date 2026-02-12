@@ -327,6 +327,43 @@
 ## 2026-02-12 00:09
 - Added brand and store dropdowns in Repair create modal with search and DB-backed lists.
 
+## 2026-02-12 16:53
+- Added Repair/SMS/Audit models and relations in Prisma schema and created /api/repairs with create/list/status updates.
+- Wired Repairs UI to API listing, filters, confirmation create flow, and status advance.
+- Ran `npx prisma db push`; Prisma generate failed due to locked query engine (stop dev server and rerun `npx prisma generate`).
+
+## 2026-02-12 16:54
+- Added brand name search support in repairs listing API.
+
+## 2026-02-12 17:06
+- Added repair view mode: View button opens the create modal in read-only state.
+
+## 2026-02-12 17:07
+- Renamed status action to Update Status and added confirmation before advancing status.
+
+## 2026-02-12 17:18
+- Added repairs calendar counts API and wired delivery date picker to load real counts from DB.
+
+## 2026-02-12 18:33
+- Fixed repairs calendar hook placement to avoid invalid hook call runtime error.
+
+## 2026-02-12 18:46
+- Normalized estimated delivery date to YYYY-MM-DD (UTC midnight) in repairs API.
+- Added calendar loading lock/spinner and wired picker to prevent clicks while counts load.
+- Cleared existing Repair records to align with date-only change.
+
+## 2026-02-12 18:48
+- Prevented redundant calendar count fetches by de-duping month requests in date picker.
+
+## 2026-02-12 19:02
+- Fixed calendar API to return YYYY-MM-DD keys so date picker counts render correctly.
+
+## 2026-02-12 19:05
+- Hid zero delivery count badges in the date picker for cleaner UX.
+
+## 2026-02-12 19:07
+- Added Repair delete API (Super Admin only) and wired delete action + confirmation in Repairs UI.
+
 ## 2026-02-12 00:00
 - Added 10 seeded clients to Prisma seed and ran the seed script.
 

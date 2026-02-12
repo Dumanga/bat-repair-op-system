@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type DeliveryDatePickerProps = {
   value: string;
   onChange: (value: string) => void;
   countsByDate?: Record<string, number>;
+  disabled?: boolean;
+  onMonthChange?: (year: number, month: number) => void;
+  loading?: boolean;
 };
 
 const monthNames = [
@@ -41,8 +44,12 @@ export function DeliveryDatePicker({
   value,
   onChange,
   countsByDate = {},
+  disabled = false,
+  onMonthChange,
+  loading = false,
 }: DeliveryDatePickerProps) {
   const [open, setOpen] = useState(false);
+  const lastRequestedRef = useRef<string | null>(null);
   const today = useMemo(() => new Date(), []);
   const initial = parseDate(value) ?? {
     year: today.getFullYear(),
@@ -63,6 +70,18 @@ export function DeliveryDatePicker({
     }
   }, [open, value]);
 
+  useEffect(() => {
+    if (!open || !onMonthChange) {
+      return;
+    }
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    if (lastRequestedRef.current === key) {
+      return;
+    }
+    lastRequestedRef.current = key;
+    onMonthChange(year, month);
+  }, [open, month, year, onMonthChange]);
+
   const { daysInMonth, startOffset, days } = useMemo(() => {
     const first = new Date(year, month - 1, 1);
     const totalDays = new Date(year, month, 0).getDate();
@@ -76,8 +95,12 @@ export function DeliveryDatePicker({
       <button
         type="button"
         className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-        onClick={() => setOpen(true)}
-        disabled={open}
+        onClick={() => {
+          if (!disabled && !loading) {
+            setOpen(true);
+          }
+        }}
+        disabled={open || disabled || loading}
         aria-expanded={open}
       >
         <span>{value || "Select date"}</span>
@@ -88,7 +111,11 @@ export function DeliveryDatePicker({
       {open ? (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            if (!loading) {
+              setOpen(false);
+            }
+          }}
           onMouseDown={(event) => event.stopPropagation()}
         >
           <div
@@ -101,6 +128,9 @@ export function DeliveryDatePicker({
                 type="button"
                 className="h-9 rounded-full border border-[var(--stroke)] px-3 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel-muted)]"
                 onClick={() => {
+                  if (loading) {
+                    return;
+                  }
                   if (month === 1) {
                     setMonth(12);
                     setYear((prev) => prev - 1);
@@ -108,6 +138,7 @@ export function DeliveryDatePicker({
                     setMonth((prev) => prev - 1);
                   }
                 }}
+                disabled={loading}
               >
                 Prev
               </button>
@@ -118,6 +149,9 @@ export function DeliveryDatePicker({
                 type="button"
                 className="h-9 rounded-full border border-[var(--stroke)] px-3 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel-muted)]"
                 onClick={() => {
+                  if (loading) {
+                    return;
+                  }
                   if (month === 12) {
                     setMonth(1);
                     setYear((prev) => prev + 1);
@@ -125,6 +159,7 @@ export function DeliveryDatePicker({
                     setMonth((prev) => prev + 1);
                   }
                 }}
+                disabled={loading}
               >
                 Next
               </button>
@@ -156,21 +191,33 @@ export function DeliveryDatePicker({
                         : "border-[var(--stroke)] bg-[var(--panel-muted)] text-[var(--foreground)] hover:border-[var(--accent)]"
                     }`}
                     onClick={() => {
+                      if (loading) {
+                        return;
+                      }
                       onChange(valueForDay);
                       setOpen(false);
                     }}
+                    disabled={loading}
                   >
                     <span>{day}</span>
+                  {count > 0 ? (
                     <span className="absolute right-1 top-1 rounded-full bg-[var(--accent)] px-1.5 text-[9px] font-semibold text-black">
                       {count}
                     </span>
-                  </button>
-                );
-              })}
+                  ) : null}
+                </button>
+              );
+            })}
             </div>
             <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
               Numbers show scheduled deliveries.
             </p>
+            {loading ? (
+              <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-[var(--stroke)] border-t-[var(--accent)]" />
+                Loading calendar counts...
+              </div>
+            ) : null}
             <div className="mt-4 flex justify-end">
               <button
                 type="button"
@@ -178,8 +225,11 @@ export function DeliveryDatePicker({
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  setOpen(false);
+                  if (!loading) {
+                    setOpen(false);
+                  }
                 }}
+                disabled={loading}
               >
                 Close
               </button>

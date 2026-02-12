@@ -1,62 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DeliveryDatePicker } from "@/components/delivery-date-picker";
-
-const repairs = [
-  {
-    id: "R-1023",
-    billNo: "B-3092",
-    client: "H. Perera",
-    brand: "Gray-Nicolls",
-    intakeType: "Walk-in",
-    store: "Colombo Workshop",
-    total: 6500,
-    advance: 2500,
-    eta: "2026-02-18",
-    status: "PENDING",
-    postponed: false,
-  },
-  {
-    id: "R-1022",
-    billNo: "B-3091",
-    client: "S. Jayasinghe",
-    brand: "Kookaburra",
-    intakeType: "Courier",
-    store: "Kandy Pickup Hub",
-    total: 8200,
-    advance: 4200,
-    eta: "2026-02-15",
-    status: "PROCESSING",
-    postponed: true,
-  },
-  {
-    id: "R-1021",
-    billNo: "B-3090",
-    client: "M. Fernando",
-    brand: "SG",
-    intakeType: "Walk-in",
-    store: "Colombo Workshop",
-    total: 5400,
-    advance: 2000,
-    eta: "2026-02-13",
-    status: "REPAIR_COMPLETED",
-    postponed: false,
-  },
-  {
-    id: "R-1020",
-    billNo: "B-3089",
-    client: "R. Silva",
-    brand: "SS",
-    intakeType: "Drop-off",
-    store: "Galle Repair Desk",
-    total: 9100,
-    advance: 4500,
-    eta: "2026-02-10",
-    status: "DELIVERED",
-    postponed: false,
-  },
-];
+import ConfirmDialog from "@/components/confirm-dialog";
 
 const statusMeta: Record<
   string,
@@ -78,6 +24,27 @@ const statusMeta: Record<
     label: "Delivered",
     className: "bg-zinc-400/15 text-zinc-400",
   },
+};
+
+type RepairItem = {
+  id: string;
+  billNo: string;
+  intakeType: "WALK_IN" | "COURIER";
+  totalAmount: number;
+  advanceAmount: number;
+  estimatedDeliveryDate: string;
+  status: "PENDING" | "PROCESSING" | "REPAIR_COMPLETED" | "DELIVERED";
+  isPostponed: boolean;
+  client: { id: string; name: string; mobile: string };
+  brand: { id: string; name: string };
+  store: { id: string; name: string };
+};
+
+type RepairResponse = {
+  items: RepairItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 type ClientOption = {
@@ -108,6 +75,7 @@ function formatMobile(value: string) {
 
 export default function RepairsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeType, setIntakeType] = useState("Walk-in");
@@ -142,20 +110,124 @@ export default function RepairsPage() {
   const [totalAmount, setTotalAmount] = useState("");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [description, setDescription] = useState("");
-  const deliveryCounts = {
-    "2026-02-03": 2,
-    "2026-02-05": 6,
-    "2026-02-10": 3,
-    "2026-02-13": 5,
-    "2026-02-15": 7,
-    "2026-02-18": 4,
-    "2026-02-22": 1,
-    "2026-02-26": 3,
-    "2026-03-04": 2,
-    "2026-03-12": 4,
-    "2026-03-19": 1,
-    "2026-03-27": 5,
-  } as Record<string, number>;
+  const [repairs, setRepairs] = useState<RepairItem[]>([]);
+  const [repairsTotal, setRepairsTotal] = useState(0);
+  const [repairsPage, setRepairsPage] = useState(1);
+  const repairsPageSize = 10;
+  const [repairsLoading, setRepairsLoading] = useState(false);
+  const [repairsError, setRepairsError] = useState<string | null>(null);
+  const [repairsSearch, setRepairsSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ACTIVE");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState(false);
+  const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
+  const [pendingStatusRepair, setPendingStatusRepair] = useState<RepairItem | null>(null);
+  const [currentRole, setCurrentRole] = useState<null | "SUPER_ADMIN" | "CASHIER" | "REPAIR_STAFF">(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<RepairItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deliveryCounts, setDeliveryCounts] = useState<Record<string, number>>(
+    {}
+  );
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+
+  const totalRepairPages = useMemo(() => {
+    return Math.max(1, Math.ceil(repairsTotal / repairsPageSize));
+  }, [repairsTotal, repairsPageSize]);
+
+  const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
+    setCalendarLoading(true);
+    setCalendarError(null);
+    try {
+      const monthParam = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+      const response = await fetch(`/api/repairs/calendar?month=${monthParam}`);
+      const payload = (await response.json()) as {
+        success: boolean;
+        data: { counts: Record<string, number> } | null;
+        message: string;
+      };
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message || "Unable to load calendar counts.");
+      }
+      setDeliveryCounts(payload.data.counts);
+    } catch (err) {
+      setCalendarError(
+        err instanceof Error ? err.message : "Unable to load calendar counts."
+      );
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, []);
+
+  const loadRepairs = useCallback(async () => {
+    setRepairsLoading(true);
+    setRepairsError(null);
+    try {
+      const params = new URLSearchParams({
+        page: String(repairsPage),
+        pageSize: String(repairsPageSize),
+      });
+      if (repairsSearch.trim()) {
+        params.set("search", repairsSearch.trim());
+      }
+      if (statusFilter && statusFilter !== "ACTIVE" && statusFilter !== "ALL") {
+        params.set("status", statusFilter);
+      }
+      if (statusFilter === "ACTIVE") {
+        params.set("excludeDelivered", "1");
+      }
+
+      const response = await fetch(`/api/repairs?${params.toString()}`);
+      const payload = (await response.json()) as {
+        success: boolean;
+        data: RepairResponse | null;
+        message: string;
+      };
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message || "Unable to load repairs.");
+      }
+      setRepairs(payload.data.items);
+      setRepairsTotal(payload.data.total);
+    } catch (err) {
+      setRepairsError(
+        err instanceof Error ? err.message : "Unable to load repairs."
+      );
+    } finally {
+      setRepairsLoading(false);
+    }
+  }, [repairsPage, repairsPageSize, repairsSearch, statusFilter]);
+
+  useEffect(() => {
+    loadRepairs();
+  }, [loadRepairs]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCurrentUser() {
+      try {
+        const response = await fetch("/api/auth/me");
+        const payload = (await response.json()) as {
+          success: boolean;
+          data: { role: "SUPER_ADMIN" | "CASHIER" | "REPAIR_STAFF" } | null;
+        };
+        if (active && response.ok && payload.success && payload.data) {
+          setCurrentRole(payload.data.role);
+        }
+      } catch {
+        if (active) {
+          setCurrentRole(null);
+        }
+      }
+    }
+
+    loadCurrentUser();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!clientOpen) {
@@ -453,6 +525,161 @@ export default function RepairsPage() {
     setAdvanceAmount("");
     setSelectedDate("");
     setDescription("");
+    setCreateError(null);
+    setViewMode(false);
+  }
+
+  function intakeToApi(value: string) {
+    return value === "Courier" ? "Courier" : "Walk-in";
+  }
+
+  function nextStatus(status: RepairItem["status"]) {
+    switch (status) {
+      case "PENDING":
+        return "PROCESSING";
+      case "PROCESSING":
+        return "REPAIR_COMPLETED";
+      case "REPAIR_COMPLETED":
+        return "DELIVERED";
+      default:
+        return null;
+    }
+  }
+
+  async function handleCreateRepair() {
+    if (
+      !billNo.trim() ||
+      !selectedClient ||
+      !selectedBrand ||
+      !selectedStore ||
+      !totalAmount ||
+      !advanceAmount ||
+      !selectedDate
+    ) {
+      setCreateError("Please complete all required fields.");
+      return;
+    }
+    setConfirmOpen(true);
+  }
+
+  async function confirmCreateRepair() {
+    if (!selectedClient || !selectedBrand || !selectedStore) {
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const response = await fetch("/api/repairs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          billNo: billNo.trim(),
+          clientId: selectedClient.id,
+          brandId: selectedBrand.id,
+          intakeType: intakeToApi(intakeType),
+          storeId: selectedStore.id,
+          totalAmount: Number(totalAmount),
+          advanceAmount: Number(advanceAmount),
+          estimatedDeliveryDate: selectedDate,
+          description: description.trim() ? description.trim() : null,
+        }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || "Unable to create repair.");
+      }
+      setConfirmOpen(false);
+      setIsModalOpen(false);
+      resetRepairForm();
+      setRepairsPage(1);
+      loadRepairs();
+    } catch (err) {
+      setCreateError(
+        err instanceof Error ? err.message : "Unable to create repair."
+      );
+      setConfirmOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleStatusAdvance(repair: RepairItem) {
+    const next = nextStatus(repair.status);
+    if (!next) {
+      return;
+    }
+    setPendingStatusRepair(repair);
+    setStatusConfirmOpen(true);
+  }
+
+  async function confirmStatusAdvance() {
+    if (!pendingStatusRepair) {
+      return;
+    }
+    const next = nextStatus(pendingStatusRepair.status);
+    if (!next) {
+      return;
+    }
+    setStatusUpdatingId(pendingStatusRepair.id);
+    try {
+      const response = await fetch("/api/repairs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: pendingStatusRepair.id,
+          status: next,
+        }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || "Unable to update status.");
+      }
+      setStatusConfirmOpen(false);
+      setPendingStatusRepair(null);
+      loadRepairs();
+    } catch (err) {
+      setRepairsError(
+        err instanceof Error ? err.message : "Unable to update status."
+      );
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  }
+
+  async function confirmDeleteRepair() {
+    if (!pendingDelete) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/repairs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pendingDelete.id }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || "Unable to delete repair.");
+      }
+      setDeleteConfirmOpen(false);
+      setPendingDelete(null);
+      loadRepairs();
+    } catch (err) {
+      setRepairsError(
+        err instanceof Error ? err.message : "Unable to delete repair."
+      );
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -473,7 +700,10 @@ export default function RepairsPage() {
           </button>
           <button
             className="h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setCreateError(null);
+              setIsModalOpen(true);
+            }}
           >
             Create Repair
           </button>
@@ -485,7 +715,9 @@ export default function RepairsPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Pending
           </p>
-          <p className="mt-3 text-3xl font-semibold">12</p>
+          <p className="mt-3 text-3xl font-semibold">
+            {repairs.filter((repair) => repair.status === "PENDING").length}
+          </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Intake awaiting start.
           </p>
@@ -494,7 +726,9 @@ export default function RepairsPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Processing
           </p>
-          <p className="mt-3 text-3xl font-semibold">8</p>
+          <p className="mt-3 text-3xl font-semibold">
+            {repairs.filter((repair) => repair.status === "PROCESSING").length}
+          </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Active bench work.
           </p>
@@ -503,7 +737,9 @@ export default function RepairsPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Completed
           </p>
-          <p className="mt-3 text-3xl font-semibold">5</p>
+          <p className="mt-3 text-3xl font-semibold">
+            {repairs.filter((repair) => repair.status === "REPAIR_COMPLETED").length}
+          </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Ready for delivery.
           </p>
@@ -512,7 +748,9 @@ export default function RepairsPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Delivered
           </p>
-          <p className="mt-3 text-3xl font-semibold">21</p>
+          <p className="mt-3 text-3xl font-semibold">
+            {repairs.filter((repair) => repair.status === "DELIVERED").length}
+          </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Hidden from main list.
           </p>
@@ -531,9 +769,14 @@ export default function RepairsPage() {
             <input
               className="h-10 w-56 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] outline-none transition focus:border-[var(--accent)]"
               placeholder="Search bill, client, brand"
+              value={repairsSearch}
+              onChange={(event) => {
+                setRepairsSearch(event.target.value);
+                setRepairsPage(1);
+              }}
             />
             <button className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-              Status: All
+              Status: {statusFilter === "ACTIVE" ? "Active" : statusFilter}
             </button>
             <button className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
               Store: All
@@ -541,65 +784,187 @@ export default function RepairsPage() {
           </div>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+          {["ACTIVE", "ALL", "PENDING", "PROCESSING", "REPAIR_COMPLETED", "DELIVERED"].map(
+            (status) => (
+              <button
+                key={status}
+                className={`h-8 rounded-full border px-3 text-[10px] uppercase tracking-[0.2em] transition ${
+                  statusFilter === status
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]"
+                    : "border-[var(--stroke)] bg-[var(--panel-muted)] text-[var(--text-muted)] hover:border-[var(--accent)]"
+                }`}
+                onClick={() => {
+                  setStatusFilter(status);
+                  setRepairsPage(1);
+                }}
+              >
+                {status === "REPAIR_COMPLETED"
+                  ? "Completed"
+                  : status === "ACTIVE"
+                    ? "Active"
+                    : status}
+              </button>
+            )
+          )}
+        </div>
+
+        {repairsError ? (
+          <div className="mt-4 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
+            {repairsError}
+          </div>
+        ) : null}
+
         <div className="mt-6 grid gap-3">
-          {repairs.map((repair) => (
-            <div
-              key={repair.id}
-              className="grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-4 text-sm lg:grid-cols-[1.4fr_1fr_1fr_1fr_0.7fr]"
-            >
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  {repair.billNo}
-                </p>
-                <p className="mt-1 font-semibold">{repair.client}</p>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {repair.brand} · {repair.intakeType}
-                </p>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Store: {repair.store}
-                </p>
-              </div>
-              <div className="text-xs text-[var(--text-muted)]">
-                <p>Total: LKR {repair.total.toLocaleString()}</p>
-                <p className="mt-1">
-                  Advance: LKR {repair.advance.toLocaleString()}
-                </p>
-                <p className="mt-1">ETA: {repair.eta}</p>
-              </div>
-              <div className="text-xs text-[var(--text-muted)]">
-                <p>Status</p>
-                <span
-                  className={`mt-2 inline-flex rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
-                    statusMeta[repair.status]?.className ??
-                    "bg-zinc-400/15 text-zinc-400"
-                  }`}
-                >
-                  {statusMeta[repair.status]?.label ?? repair.status}
-                </span>
-                {repair.postponed ? (
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-amber-400">
-                    Postponed
+          {repairsLoading ? (
+            <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-6 text-sm text-[var(--text-muted)]">
+              Loading repairs...
+            </div>
+          ) : repairs.length === 0 ? (
+            <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-6 text-sm text-[var(--text-muted)]">
+              No repairs found.
+            </div>
+          ) : (
+            repairs.map((repair) => (
+              <div
+                key={repair.id}
+                className="grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-4 text-sm lg:grid-cols-[1.4fr_1fr_1fr_1fr_0.7fr]"
+              >
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    {repair.billNo}
                   </p>
-                ) : null}
-              </div>
-              <div className="text-xs text-[var(--text-muted)]">
-                <p>Actions</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-                    Update Status
+                  <p className="mt-1 font-semibold">{repair.client.name}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    {repair.brand.name} ·{" "}
+                    {repair.intakeType === "COURIER" ? "Courier" : "Walk-in"}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    Store: {repair.store.name}
+                  </p>
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  <p>Total: LKR {repair.totalAmount.toLocaleString()}</p>
+                  <p className="mt-1">
+                    Advance: LKR {repair.advanceAmount.toLocaleString()}
+                  </p>
+                  <p className="mt-1">
+                    ETA: {new Date(repair.estimatedDeliveryDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  <p>Status</p>
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
+                      statusMeta[repair.status]?.className ??
+                      "bg-zinc-400/15 text-zinc-400"
+                    }`}
+                  >
+                    {statusMeta[repair.status]?.label ?? repair.status}
+                  </span>
+                  {repair.isPostponed ? (
+                    <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-amber-400">
+                      Postponed
+                    </p>
+                  ) : null}
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  <p>Actions</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)] disabled:opacity-60"
+                      onClick={() => handleStatusAdvance(repair)}
+                      disabled={
+                        repair.status === "DELIVERED" || statusUpdatingId === repair.id
+                      }
+                    >
+                      {statusUpdatingId === repair.id ? "Updating..." : "Update Status"}
+                    </button>
+                    <button className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
+                      Postpone
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)]"
+                    onClick={() => {
+                      setViewMode(true);
+                      setBillNo(repair.billNo);
+                      setSelectedClient({
+                        id: repair.client.id,
+                        name: repair.client.name,
+                        mobile: repair.client.mobile,
+                      });
+                      setSelectedBrand({
+                        id: repair.brand.id,
+                        name: repair.brand.name,
+                      });
+                      setSelectedStore({
+                        id: repair.store.id,
+                        name: repair.store.name,
+                      });
+                      setIntakeType(
+                        repair.intakeType === "COURIER" ? "Courier" : "Walk-in"
+                      );
+                      setTotalAmount(String(repair.totalAmount));
+                      setAdvanceAmount(String(repair.advanceAmount));
+                      setSelectedDate(
+                        new Date(repair.estimatedDeliveryDate)
+                          .toISOString()
+                          .slice(0, 10)
+                      );
+                      setDescription(repair.description ?? "");
+                      setIsModalOpen(true);
+                    }}
+                  >
+                    View
                   </button>
-                  <button className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-                    Postpone
-                  </button>
+                  {currentRole === "SUPER_ADMIN" ? (
+                    <button
+                      className="h-9 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-200 transition hover:bg-rose-500/20"
+                      onClick={() => {
+                        setPendingDelete(repair);
+                        setDeleteConfirmOpen(true);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  ) : null}
                 </div>
               </div>
-              <div className="flex items-center justify-end">
-                <button className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)]">
-                  View
-                </button>
-              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--text-muted)]">
+          <div className="flex items-center gap-2">
+            <span>Showing</span>
+            <span className="rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 py-1">
+              {repairs.length} of {repairsTotal}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div>
+              Page{" "}
+              <span className="text-[var(--foreground)]">{repairsPage}</span> of{" "}
+              {totalRepairPages}
             </div>
-          ))}
+            <button
+              className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 transition hover:bg-[var(--panel)]"
+              onClick={() => setRepairsPage((prev) => Math.max(1, prev - 1))}
+              disabled={repairsPage <= 1}
+            >
+              Prev
+            </button>
+            <button
+              className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 transition hover:bg-[var(--panel)]"
+              onClick={() => setRepairsPage((prev) => Math.min(totalRepairPages, prev + 1))}
+              disabled={repairsPage >= totalRepairPages}
+            >
+              Next
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -628,6 +993,11 @@ export default function RepairsPage() {
             </div>
 
             <form className="mt-6 grid gap-4">
+              {createError ? (
+                <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
+                  {createError}
+                </div>
+              ) : null}
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
@@ -639,6 +1009,7 @@ export default function RepairsPage() {
                     type="text"
                     value={billNo}
                     onChange={(event) => setBillNo(event.target.value)}
+                    disabled={viewMode}
                   />
                 </label>
                 <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
@@ -649,8 +1020,13 @@ export default function RepairsPage() {
                     <button
                       type="button"
                       className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-                      onClick={() => setClientOpen((prev) => !prev)}
+                      onClick={() => {
+                        if (!viewMode) {
+                          setClientOpen((prev) => !prev);
+                        }
+                      }}
                       aria-expanded={clientOpen}
+                      disabled={viewMode}
                     >
                       <span>
                         {selectedClient
@@ -735,8 +1111,13 @@ export default function RepairsPage() {
                     <button
                       type="button"
                       className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-                      onClick={() => setBrandOpen((prev) => !prev)}
+                      onClick={() => {
+                        if (!viewMode) {
+                          setBrandOpen((prev) => !prev);
+                        }
+                      }}
                       aria-expanded={brandOpen}
+                      disabled={viewMode}
                     >
                       <span>{selectedBrand?.name ?? "Select brand"}</span>
                       <span className="text-xs text-[var(--text-muted)]">v</span>
@@ -811,8 +1192,13 @@ export default function RepairsPage() {
                     <button
                       type="button"
                       className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-                      onClick={() => setIntakeOpen((prev) => !prev)}
+                      onClick={() => {
+                        if (!viewMode) {
+                          setIntakeOpen((prev) => !prev);
+                        }
+                      }}
                       aria-expanded={intakeOpen}
+                      disabled={viewMode}
                     >
                       <span>{intakeType}</span>
                       <span className="text-xs text-[var(--text-muted)]">v</span>
@@ -855,8 +1241,13 @@ export default function RepairsPage() {
                     <button
                       type="button"
                       className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-                      onClick={() => setStoreOpen((prev) => !prev)}
+                      onClick={() => {
+                        if (!viewMode) {
+                          setStoreOpen((prev) => !prev);
+                        }
+                      }}
                       aria-expanded={storeOpen}
+                      disabled={viewMode}
                     >
                       <span>
                         {selectedStore?.name
@@ -948,6 +1339,7 @@ export default function RepairsPage() {
                       setTotalAmount(event.currentTarget.value);
                     }}
                     value={totalAmount}
+                    disabled={viewMode}
                   />
                 </label>
                 <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
@@ -968,6 +1360,7 @@ export default function RepairsPage() {
                       setAdvanceAmount(event.currentTarget.value);
                     }}
                     value={advanceAmount}
+                    disabled={viewMode}
                   />
                 </label>
               </div>
@@ -979,8 +1372,16 @@ export default function RepairsPage() {
                   value={selectedDate}
                   onChange={setSelectedDate}
                   countsByDate={deliveryCounts}
+                  disabled={viewMode}
+                  onMonthChange={handleCalendarMonthChange}
+                  loading={calendarLoading}
                 />
               </label>
+              {calendarError ? (
+                <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
+                  {calendarError}
+                </div>
+              ) : null}
               <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-xs text-[var(--text-muted)]">
                 Tracking token (8-12 chars) will be generated on save, stored as a
                 hash, and disabled after delivery.
@@ -992,6 +1393,7 @@ export default function RepairsPage() {
                   placeholder="Add repair notes, issues, or special instructions."
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
+                  disabled={viewMode}
                 />
               </label>
               <div className="flex flex-wrap justify-end gap-3">
@@ -1003,19 +1405,85 @@ export default function RepairsPage() {
                     resetRepairForm();
                   }}
                 >
-                  Cancel
+                  {viewMode ? "Close" : "Cancel"}
                 </button>
-                <button
-                  type="button"
-                  className="h-10 rounded-full bg-[var(--accent)] px-6 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
-                >
-                  Save Repair
-                </button>
+                {!viewMode ? (
+                  <button
+                    type="button"
+                    className="h-10 rounded-full bg-[var(--accent)] px-6 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
+                    onClick={handleCreateRepair}
+                  >
+                    Save Repair
+                  </button>
+                ) : null}
               </div>
             </form>
           </div>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Create repair job?"
+        description={
+          createError ??
+          `Bill ${billNo} for ${
+            selectedClient ? selectedClient.name : "client"
+          } at ${selectedStore?.name ?? "store"} will be created and SMS queued.`
+        }
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        loading={creating}
+        onCancel={() => {
+          if (creating) {
+            return;
+          }
+          setConfirmOpen(false);
+        }}
+        onConfirm={confirmCreateRepair}
+      />
+      <ConfirmDialog
+        open={statusConfirmOpen}
+        title="Update status?"
+        description={
+          pendingStatusRepair
+            ? `Move ${pendingStatusRepair.billNo} from ${
+                statusMeta[pendingStatusRepair.status]?.label ??
+                pendingStatusRepair.status
+              } to ${
+                statusMeta[nextStatus(pendingStatusRepair.status) ?? ""]?.label ??
+                nextStatus(pendingStatusRepair.status) ??
+                "next status"
+              }.`
+            : "Confirm status update."
+        }
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        loading={Boolean(pendingStatusRepair && statusUpdatingId === pendingStatusRepair.id)}
+        onCancel={() => {
+          if (statusUpdatingId) {
+            return;
+          }
+          setStatusConfirmOpen(false);
+          setPendingStatusRepair(null);
+        }}
+        onConfirm={confirmStatusAdvance}
+      />
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title={`Delete ${pendingDelete?.billNo ?? "repair"}?`}
+        description="This will permanently remove the repair job."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        loading={deleting}
+        onCancel={() => {
+          if (deleting) {
+            return;
+          }
+          setDeleteConfirmOpen(false);
+          setPendingDelete(null);
+        }}
+        onConfirm={confirmDeleteRepair}
+      />
     </section>
   );
 }

@@ -30,6 +30,24 @@ enum UserSystem {
   BOTH
 }
 
+enum RepairStatus {
+  PENDING
+  PROCESSING
+  REPAIR_COMPLETED
+  DELIVERED
+}
+
+enum RepairIntakeType {
+  WALK_IN
+  COURIER
+}
+
+enum SmsStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -51,6 +69,8 @@ model User {
 
   sessions     Session[]
   store        Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  repairsCreated Repair[]
+  repairAudits  RepairAudit[]
 
   @@index([system])
   @@index([storeId])
@@ -71,6 +91,8 @@ model Brand {
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  repairs   Repair[]
 }
 
 model Client {
@@ -80,6 +102,8 @@ model Client {
   tier      LoyaltyTier @default(BRONZE)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+
+  repairs   Repair[]
 
   @@index([name])
 }
@@ -95,8 +119,73 @@ model Store {
   updatedAt DateTime    @updatedAt
 
   users     User[]
+  repairs   Repair[]
 
   @@index([name])
   @@index([city])
   @@index([status])
+}
+
+model Repair {
+  id        String       @id @default(cuid())
+  billNo    String       @unique
+  clientId  String
+  brandId   String
+  intakeType RepairIntakeType
+  storeId   String
+  totalAmount Int
+  advanceAmount Int
+  estimatedDeliveryDate DateTime
+  status    RepairStatus @default(PENDING)
+  isPostponed Boolean    @default(false)
+  description String?
+  trackingTokenHash String
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  brand    Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  store    Store  @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy User  @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  smsOutbox SmsOutbox[]
+  audits    RepairAudit[]
+
+  @@index([storeId])
+  @@index([status])
+  @@index([estimatedDeliveryDate])
+}
+
+model SmsOutbox {
+  id        String    @id @default(cuid())
+  repairId  String
+  recipient String
+  message   String
+  type      String
+  status    SmsStatus @default(PENDING)
+  scheduledFor DateTime?
+  sentAt    DateTime?
+  providerResponse String?
+  createdAt DateTime @default(now())
+
+  repair    Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+
+  @@index([repairId])
+  @@index([status])
+}
+
+model RepairAudit {
+  id        String   @id @default(cuid())
+  repairId  String
+  eventType String
+  oldValue  String?
+  newValue  String?
+  performedById String
+  createdAt DateTime @default(now())
+
+  repair    Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  performedBy User @relation(fields: [performedById], references: [id], onDelete: Restrict)
+
+  @@index([repairId])
+  @@index([eventType])
 }
