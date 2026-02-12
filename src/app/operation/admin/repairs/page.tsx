@@ -205,6 +205,18 @@ export default function RepairsPage() {
   }, [loadRepairs]);
 
   useEffect(() => {
+    const shouldLock = isModalOpen || confirmOpen || statusConfirmOpen || deleteConfirmOpen;
+    if (shouldLock) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+    document.body.style.overflow = "";
+    return undefined;
+  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen]);
+
+  useEffect(() => {
     let active = true;
     async function loadCurrentUser() {
       try {
@@ -980,8 +992,8 @@ export default function RepairsPage() {
       </div>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-3xl rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
                 New Repair

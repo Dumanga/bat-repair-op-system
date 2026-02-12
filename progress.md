@@ -370,6 +370,9 @@
 ## 2026-02-12 19:27
 - Fixed Users create modal to lock background scroll and allow modal content scrolling on mobile.
 
+## 2026-02-12 19:32
+- Fixed Repairs create modal spacing and scroll locking so only the modal scrolls.
+
 ## 2026-02-12 00:00
 - Added 10 seeded clients to Prisma seed and ran the seed script.
 
