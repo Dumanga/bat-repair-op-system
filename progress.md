@@ -364,6 +364,12 @@
 ## 2026-02-12 19:07
 - Added Repair delete API (Super Admin only) and wired delete action + confirmation in Repairs UI.
 
+## 2026-02-12 19:25
+- Fixed Stores modals to lock background scroll and allow modal content scrolling on mobile.
+
+## 2026-02-12 19:27
+- Fixed Users create modal to lock background scroll and allow modal content scrolling on mobile.
+
 ## 2026-02-12 00:00
 - Added 10 seeded clients to Prisma seed and ran the seed script.
 

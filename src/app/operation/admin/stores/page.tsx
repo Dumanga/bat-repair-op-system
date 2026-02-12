@@ -55,6 +55,18 @@ export default function StoresPage() {
   const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
 
+  useEffect(() => {
+    const shouldLock = isModalOpen || isDeleteOpen;
+    if (shouldLock) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+    document.body.style.overflow = "";
+    return undefined;
+  }, [isModalOpen, isDeleteOpen]);
+
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(total / pageSize));
   }, [total, pageSize]);
@@ -412,8 +424,8 @@ export default function StoresPage() {
       </div>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-xl rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
@@ -552,8 +564,8 @@ export default function StoresPage() {
       ) : null}
 
       {isDeleteOpen && deletingStore ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-md rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
             <h3 className="text-xl font-semibold">Delete store</h3>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
               This will remove{" "}

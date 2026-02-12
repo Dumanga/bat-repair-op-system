@@ -96,6 +96,18 @@ export default function UsersPage() {
   const [storeId, setStoreId] = useState("");
   const [storeOpen, setStoreOpen] = useState(false);
 
+  useEffect(() => {
+    const shouldLock = open || confirmOpen;
+    if (shouldLock) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+    document.body.style.overflow = "";
+    return undefined;
+  }, [open, confirmOpen]);
+
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(total / pageSize));
   }, [total, pageSize]);
@@ -539,8 +551,8 @@ export default function UsersPage() {
       </div>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-2xl rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-xl">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                 {editingUser ? "Edit User" : "New User"}
