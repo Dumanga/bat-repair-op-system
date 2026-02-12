@@ -260,3 +260,75 @@
 
 ## 2026-02-11 00:09
 - Added staff counts per store in Stores API and UI (excluding Super Admin).
+
+## 2026-02-11 00:48
+- Built Repairs sample UI with KPIs, status flow, list, and intake modal fields per requirements.
+
+## 2026-02-11 12:45
+- Added custom delivery date picker UI with per-day delivery count badges (template data).
+
+## 2026-02-11 12:47
+- Extracted custom delivery date picker into reusable component for repairs and future dashboards.
+
+## 2026-02-11 12:50
+- Enhanced delivery date picker with month navigation and modal-style overlay; added multi-month template counts.
+
+## 2026-02-11 12:56
+- Fixed delivery date picker close behavior and defaulted month view to current date when no selection.
+
+## 2026-02-11 12:57
+- Adjusted delivery date picker open/close handling and preserved last viewed month when no date is selected.
+
+## 2026-02-11 12:58
+- Disabled date picker trigger while open to prevent immediate reopen on close.
+
+## 2026-02-11 13:03
+- Updated Repair create placeholders for bill number and amount fields.
+
+## 2026-02-11 13:07
+- Restricted total/advance inputs to digits only and updated placeholders to "xxxx".
+
+## 2026-02-11 13:33
+- Switched intake type to a Walk-in/Courier dropdown and added repair description field.
+
+## 2026-02-11 13:34
+- Replaced intake type select with a custom-styled dropdown UI.
+
+## 2026-02-11 13:39
+- Wired intake type dropdown open/close state and selection handling.
+
+## 2026-02-11 14:12
+- Fixed intake type dropdown to close immediately on option selection.
+
+## 2026-02-11 15:32
+- Fixed intake type dropdown selection so chosen option updates correctly.
+
+## 2026-02-11 15:34
+- Rebuilt intake type dropdown with the standard custom-styled pattern used elsewhere.
+
+## 2026-02-11 15:38
+- Re-aligned intake type dropdown markup to match Users form dropdown pattern.
+
+## 2026-02-11 15:57
+- Fixed intake type dropdown closing by removing label wrapper.
+
+## 2026-02-11 23:42
+- Added client dropdown in Repair create modal with search input and DB-backed list.
+
+## 2026-02-11 23:47
+- Improved client search: numeric queries match mobile startsWith (0-prefixed local supported), text queries match name.
+
+## 2026-02-11 23:53
+- Added client dropdown pagination with "Load more" to avoid fixed size limits.
+
+## 2026-02-11 23:55
+- Updated client search to fetch all matching pages so results are not capped by initial page size.
+
+## 2026-02-12 00:09
+- Added brand and store dropdowns in Repair create modal with search and DB-backed lists.
+
+## 2026-02-12 00:00
+- Added 10 seeded clients to Prisma seed and ran the seed script.
+
+## 2026-02-12 00:06
+- Reset Repair create form fields when canceling the modal.

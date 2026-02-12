@@ -36,21 +36,25 @@ export async function GET(request: Request) {
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
     const search = (searchParams.get("search") ?? "").trim();
 
+    const isNumericSearch = /^\d+$/.test(search);
+    const normalizedSearch = isNumericSearch ? search.replace(/\D/g, "") : search;
+    const mobileSearch =
+      isNumericSearch && normalizedSearch.startsWith("0")
+        ? `94${normalizedSearch.slice(1)}`
+        : normalizedSearch;
+
     const where = search
-      ? {
-          OR: [
-            {
-              name: {
-                contains: search,
-              },
+      ? isNumericSearch
+        ? {
+            mobile: {
+              startsWith: mobileSearch,
             },
-            {
-              mobile: {
-                contains: search,
-              },
+          }
+        : {
+            name: {
+              contains: search,
             },
-          ],
-        }
+          }
       : {};
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

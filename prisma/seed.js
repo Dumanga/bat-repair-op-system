@@ -42,6 +42,30 @@ async function main() {
       accessSettings: true,
     },
   });
+
+  const clients = [
+    { name: "Nimal Perera", mobile: "94718808854", tier: "GOLD" },
+    { name: "Axar Patel", mobile: "94711234567", tier: "SILVER" },
+    { name: "Ruwan Silva", mobile: "94770111222", tier: "BRONZE" },
+    { name: "Dinesh Fernando", mobile: "94772223344", tier: "SILVER" },
+    { name: "Kumari Jayasinghe", mobile: "94775556677", tier: "BRONZE" },
+    { name: "Sanjaya Rathnayake", mobile: "94776677889", tier: "GOLD" },
+    { name: "Thilini Perera", mobile: "94771112233", tier: "BRONZE" },
+    { name: "Chamithra de Silva", mobile: "94772224455", tier: "SILVER" },
+    { name: "Isuru Gunathilaka", mobile: "94773335566", tier: "BRONZE" },
+    { name: "Pradeep Wijesinghe", mobile: "94774446677", tier: "GOLD" },
+  ];
+
+  for (const client of clients) {
+    await prisma.client.upsert({
+      where: { mobile: client.mobile },
+      update: {
+        name: client.name,
+        tier: client.tier,
+      },
+      create: client,
+    });
+  }
 }
 
 main()
