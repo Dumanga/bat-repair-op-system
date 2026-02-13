@@ -447,3 +447,18 @@
 
 ## 2026-02-13 16:12
 - Updated Repairs create/view header copy to reflect view and edit modes instead of always showing create text.
+
+## 2026-02-13 16:26
+- Routed Edit/Reschedule to the inline view and hid non-editable fields behind a summary while keeping ETA, items, and description editable.
+
+## 2026-02-13 16:38
+- Restored edit-mode editable sections (ETA, repair items, totals, description) while keeping non-editable fields as a summary.
+
+## 2026-02-13 16:56
+- Cleaned Repairs form render branches so create and edit sections no longer overlap, fixing the edit-mode layout and compile errors.
+
+## 2026-02-13 17:03
+- Returned to the repairs main view after a successful update instead of leaving the create form open.
+
+## 2026-02-13 17:11
+- Added a short success banner after updating a repair, then auto-returned to the main repairs screen.

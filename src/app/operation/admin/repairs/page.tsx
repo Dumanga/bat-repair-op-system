@@ -169,6 +169,7 @@ export default function RepairsPage() {
   );
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [validationOpen, setValidationOpen] = useState(false);
   const [validationMessage, setValidationMessage] = useState("");
   const [repairTypeOptions, setRepairTypeOptions] = useState<RepairTypeItem[]>([]);
@@ -1027,9 +1028,14 @@ export default function RepairsPage() {
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to update repair.");
       }
-      setIsModalOpen(false);
-      resetRepairForm();
-      loadRepairs();
+      setSuccessMessage("Repair updated successfully.");
+      setTimeout(() => {
+        setSuccessMessage(null);
+        setIsModalOpen(false);
+        setShowCreateForm(false);
+        resetRepairForm();
+        loadRepairs();
+      }, 2500);
     } catch (err) {
       setCreateError(
         err instanceof Error ? err.message : "Unable to update repair."
@@ -1501,9 +1507,9 @@ export default function RepairsPage() {
                     <button
                       className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
                       onClick={() => {
-                        setShowCreateForm(false);
-                        setEditMode(true);
-                        setViewMode(false);
+                      setShowCreateForm(true);
+                      setEditMode(true);
+                      setViewMode(false);
                         setEditingRepairId(repair.id);
                         setBillNo(repair.billNo);
                         setSelectedClient({
@@ -1551,7 +1557,7 @@ export default function RepairsPage() {
                         setSelectedDate(dateValue);
                         setInitialDeliveryDate(dateValue);
                         setDescription(repair.description ?? "");
-                        setIsModalOpen(true);
+                        setIsModalOpen(false);
                       }}
                     >
                       Edit/Reschedule
@@ -1716,6 +1722,261 @@ export default function RepairsPage() {
                   {createError}
                 </div>
               ) : null}
+              {successMessage ? (
+                <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+                  {successMessage}
+                </div>
+              ) : null}
+              {editMode && !viewMode ? (
+                <>
+                  <div className="grid gap-4">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Bill number
+                        </p>
+                        <p className="mt-2 font-semibold">{billNo || "-"}</p>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Client
+                        </p>
+                        <p className="mt-2 font-semibold">
+                          {selectedClient
+                            ? `${selectedClient.name} - ${formatMobile(
+                                selectedClient.mobile
+                              )}`
+                            : "-"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Bat brand
+                        </p>
+                        <p className="mt-2 font-semibold">
+                          {selectedBrand?.name ?? "-"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Intake type
+                        </p>
+                        <p className="mt-2 font-semibold">{intakeType}</p>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Store
+                        </p>
+                        <p className="mt-2 font-semibold">
+                          {selectedStore?.name ?? "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>
+                      Estimated delivery date <span className="text-rose-400">*</span>
+                    </span>
+                    <DeliveryDatePicker
+                      value={selectedDate}
+                      onChange={setSelectedDate}
+                      countsByDate={deliveryCounts}
+                      disabled={viewMode}
+                      onMonthChange={handleCalendarMonthChange}
+                      loading={calendarLoading}
+                    />
+                  </label>
+                  {calendarError ? (
+                    <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
+                      {calendarError}
+                    </div>
+                  ) : null}
+                  <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Repair items
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">
+                          Add one or more repair items to build the bill.
+                        </p>
+                      </div>
+                      {!viewMode ? (
+                        <button
+                          type="button"
+                          className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:border-[var(--accent)]"
+                          onClick={addRepairItem}
+                        >
+                          Add Repair
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      {repairItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="grid gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-3 md:grid-cols-[1.2fr_0.6fr_auto]"
+                        >
+                          <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                            <span>Repair type</span>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
+                                onClick={() => {
+                                  if (!viewMode && !repairTypeOptionsLoading) {
+                                    setRepairTypeOpenId((prev) =>
+                                      prev === item.id ? null : item.id
+                                    );
+                                    setRepairTypeSearchTerm("");
+                                  }
+                                }}
+                                aria-expanded={repairTypeOpenId === item.id}
+                                disabled={viewMode || repairTypeOptionsLoading}
+                              >
+                                <span>
+                                  {item.repairTypeName ||
+                                    (repairTypeOptionsLoading
+                                      ? "Loading types..."
+                                      : "Select repair type")}
+                                </span>
+                                <span className="text-[10px] text-[var(--text-muted)]">v</span>
+                              </button>
+                              {repairTypeOpenId === item.id ? (
+                                <div className="absolute left-0 right-0 z-10 mt-2 rounded-xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
+                                  <div className="p-2">
+                                    <input
+                                      className="h-9 w-full rounded-lg border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                                      placeholder="Search repair types"
+                                      value={repairTypeSearchTerm}
+                                      onChange={(event) =>
+                                        setRepairTypeSearchTerm(event.target.value)
+                                      }
+                                    />
+                                  </div>
+                                  {repairTypeOptionsLoading ? (
+                                    <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                      Loading repair types...
+                                    </div>
+                                  ) : repairTypeOptions.length === 0 ? (
+                                    <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                      No types found.
+                                    </div>
+                                  ) : (
+                                    repairTypeOptions.map((option) => (
+                                      <button
+                                        key={option.id}
+                                        type="button"
+                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                          option.id === item.repairTypeId
+                                            ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
+                                            : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
+                                        }`}
+                                        onClick={() => {
+                                          updateRepairItem(item.id, {
+                                            repairTypeId: option.id,
+                                            repairTypeName: `${option.code} - ${option.name}`,
+                                          });
+                                          setRepairTypeOpenId(null);
+                                          setRepairTypeSearchTerm("");
+                                        }}
+                                      >
+                                        <span>{option.code} - {option.name}</span>
+                                        {option.id === item.repairTypeId ? (
+                                          <span className="text-[10px] text-[var(--text-muted)]">
+                                            Selected
+                                          </span>
+                                        ) : null}
+                                      </button>
+                                    ))
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                            <span>Price</span>
+                            <input
+                              className="h-10 rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                              placeholder="xxxx"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="\\d*"
+                              value={item.price}
+                              onChange={(event) => {
+                                event.currentTarget.value =
+                                  event.currentTarget.value.replace(/\\D/g, "");
+                                updateRepairItem(item.id, {
+                                  price: event.currentTarget.value,
+                                });
+                              }}
+                              disabled={viewMode}
+                            />
+                          </label>
+                          <div className="flex items-end justify-end">
+                            {!viewMode ? (
+                              <button
+                                type="button"
+                                className="h-9 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-[10px] uppercase tracking-[0.2em] text-rose-200 transition hover:bg-rose-500/20"
+                                onClick={() => removeRepairItem(item.id)}
+                                disabled={repairItems.length <= 1}
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-end justify-end gap-4 text-xs text-[var(--text-muted)]">
+                      <label className="grid gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        <span>Advance</span>
+                        <div className="relative w-32">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                            LKR
+                          </span>
+                          <input
+                            className="h-9 w-full rounded-full border border-[var(--stroke)] bg-[var(--panel)] pl-10 pr-4 text-xs text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+                            placeholder="xxxx"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\\d*"
+                            onChange={(event) => {
+                              event.currentTarget.value =
+                                event.currentTarget.value.replace(/\\D/g, "");
+                              setAdvanceAmount(event.currentTarget.value);
+                            }}
+                            value={advanceAmount}
+                            disabled={viewMode}
+                          />
+                        </div>
+                      </label>
+                      <div className="grid gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        <span>Total amount</span>
+                        <span className="flex h-9 min-w-[8rem] items-center rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--foreground)]">
+                          LKR {computedTotalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-xs text-[var(--text-muted)]">
+                    Tracking token (8-12 chars) will be generated on save, stored as a
+                    hash, and disabled after delivery.
+                  </div>
+                  <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    Description
+                    <textarea
+                      className="min-h-[96px] rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+                      placeholder="Add repair notes, issues, or special instructions."
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      disabled={viewMode}
+                    />
+                  </label>
+                </>
+              ) : null}
               {viewMode ? (
                 <div className="grid gap-4">
                   <div className="grid gap-3 md:grid-cols-3">
@@ -1822,9 +2083,10 @@ export default function RepairsPage() {
                     </p>
                   </div>
                 </div>
-              ) : (
+              ) : null}
+              {!viewMode && !editMode ? (
                 <>
-              <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-3">
                 <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
                     Bill number <span className="text-rose-400">*</span>
@@ -2009,157 +2271,12 @@ export default function RepairsPage() {
                   </div>
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  <span>
-                    Intake type <span className="text-rose-400">*</span>
-                  </span>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-                      onClick={() => {
-                        if (!viewMode) {
-                          setIntakeOpen((prev) => !prev);
-                        }
-                      }}
-                      aria-expanded={intakeOpen}
-                      disabled={viewMode}
-                    >
-                      <span>{intakeType}</span>
-                      <span className="text-xs text-[var(--text-muted)]">v</span>
-                    </button>
-                    {intakeOpen ? (
-                      <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
-                        {["Walk-in", "Courier"].map((option) => (
-                          <button
-                            key={option}
-                            type="button"
-                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
-                              option === intakeType
-                                ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
-                                : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
-                            }`}
-                            onClick={() => {
-                              setIntakeType(option);
-                              setIntakeOpen(false);
-                            }}
-                          >
-                            <span>{option}</span>
-                            {option === intakeType ? (
-                              <span className="text-xs text-[var(--text-muted)]">
-                                Selected
-                              </span>
-                            ) : null}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  <span>
-                    Store <span className="text-rose-400">*</span>
-                  </span>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
-                      onClick={() => {
-                        if (!viewMode) {
-                          setStoreOpen((prev) => !prev);
-                        }
-                      }}
-                      aria-expanded={storeOpen}
-                      disabled={viewMode}
-                    >
-                      <span>
-                        {selectedStore?.name
-                          ? selectedStore.name
-                          : "Select store"}
-                      </span>
-                      <span className="text-xs text-[var(--text-muted)]">v</span>
-                    </button>
-                    {storeOpen ? (
-                      <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
-                        <div className="p-2">
-                          <input
-                            className="h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
-                            placeholder="Search stores"
-                            value={storeSearch}
-                            onChange={(event) => setStoreSearch(event.target.value)}
-                          />
-                        </div>
-                        <div className="max-h-56 overflow-auto">
-                          {storeLoading ? (
-                            <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
-                              Loading stores...
-                            </div>
-                          ) : storeError ? (
-                            <div className="px-3 py-2 text-xs text-rose-500">
-                              {storeError}
-                            </div>
-                          ) : stores.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
-                              No stores found.
-                            </div>
-                          ) : (
-                            stores.map((store) => (
-                              <button
-                                key={store.id}
-                                type="button"
-                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
-                                  selectedStore?.id === store.id
-                                    ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
-                                    : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
-                                }`}
-                                onClick={() => {
-                                  setSelectedStore(store);
-                                  setStoreOpen(false);
-                                }}
-                              >
-                                <span>
-                                  {store.name}
-                                  {store.city ? ` · ${store.city}` : ""}
-                                </span>
-                                {selectedStore?.id === store.id ? (
-                                  <span className="text-xs text-[var(--text-muted)]">
-                                    Selected
-                                  </span>
-                                ) : null}
-                              </button>
-                            ))
-                          )}
-                          {storeHasMore && !storeLoading && !storeError && !storeSearch.trim() ? (
-                            <button
-                              type="button"
-                              className="mt-2 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 py-2 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
-                              onClick={() => setStorePage((prev) => prev + 1)}
-                              disabled={storeLoadingMore}
-                            >
-                              {storeLoadingMore ? "Loading..." : "Load more"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  <span>
-                    Estimated delivery date <span className="text-rose-400">*</span>
-                  </span>
-                  <DeliveryDatePicker
-                    value={selectedDate}
-                    onChange={setSelectedDate}
-                    countsByDate={deliveryCounts}
-                    disabled={viewMode}
-                    onMonthChange={handleCalendarMonthChange}
-                    loading={calendarLoading}
-                  />
-                </label>
-              </div>
-              {calendarError ? (
+
+                </>
+              ) : null}
+              {!viewMode && !editMode ? (
+                <>
+                {calendarError ? (
                 <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
                   {calendarError}
                 </div>
@@ -2347,7 +2464,7 @@ export default function RepairsPage() {
                 />
               </label>
                 </>
-              )}
+              ) : null}
               <div className="flex flex-wrap justify-end gap-3">
                 <button
                   type="button"
