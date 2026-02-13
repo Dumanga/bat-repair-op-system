@@ -1694,11 +1694,19 @@ export default function RepairsPage() {
           >
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                New Repair
+                {viewMode ? "Repair Summary" : editMode ? "Update Repair" : "New Repair"}
               </p>
-              <h3 className="mt-2 text-xl font-semibold">Create repair job</h3>
+              <h3 className="mt-2 text-xl font-semibold">
+                {viewMode
+                  ? "Repair job details"
+                  : editMode
+                    ? "Edit repair job"
+                    : "Create repair job"}
+              </h3>
               <p className="mt-2 text-sm text-[var(--text-muted)]">
-                Required fields generate bill, tracking token, and SMS queue.
+                {viewMode
+                  ? "Review the bill, client details, and status for this repair."
+                  : "Required fields generate bill, tracking token, and SMS queue."}
               </p>
             </div>
 

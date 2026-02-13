@@ -444,3 +444,6 @@
 
 ## 2026-02-13 16:04
 - Included repair type details in repairs API responses and used them to show proper item names in view mode.
+
+## 2026-02-13 16:12
+- Updated Repairs create/view header copy to reflect view and edit modes instead of always showing create text.
