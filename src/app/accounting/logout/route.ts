@@ -5,7 +5,7 @@ import { getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  const cookieName = getSessionCookieName("OPERATION");
+  const cookieName = getSessionCookieName("ACCOUNTING");
   const token = cookieStore.get(cookieName)?.value;
 
   if (token) {
@@ -23,5 +23,5 @@ export async function POST(request: Request) {
     expires: new Date(0),
   });
 
-  return NextResponse.redirect(new URL("/operation/login", request.url));
+  return NextResponse.redirect(new URL("/accounting/login", request.url));
 }

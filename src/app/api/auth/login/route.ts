@@ -5,7 +5,7 @@ import { fail, ok } from "@/lib/api/response";
 import type { LoginRequestDTO } from "@/lib/auth/dto";
 import type { LoginResponseDTO } from "@/lib/auth/dto";
 import { prisma } from "@/lib/db";
-import { createSessionToken, hashSessionToken } from "@/lib/auth/session";
+import { createSessionToken, getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 
 const allowedKeys = new Set<keyof LoginRequestDTO>(["identifier", "password"]);
 
@@ -29,6 +29,7 @@ async function parseBody(request: Request): Promise<Partial<LoginRequestDTO>> {
 
 export async function POST(request: Request) {
   try {
+    const portal = getPortalFromPath(new URL(request.url).pathname);
     const data = await parseBody(request);
     const incomingKeys = Object.keys(data);
 
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     });
 
     const cookieStore = await cookies();
-    cookieStore.set("dob_session", rawToken, {
+    cookieStore.set(getSessionCookieName(portal), rawToken, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",

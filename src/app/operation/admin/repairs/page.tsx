@@ -122,6 +122,9 @@ export default function RepairsPage() {
   const [creating, setCreating] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingRepairId, setEditingRepairId] = useState<string | null>(null);
+  const [initialDeliveryDate, setInitialDeliveryDate] = useState<string | null>(null);
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [pendingStatusRepair, setPendingStatusRepair] = useState<RepairItem | null>(null);
   const [currentRole, setCurrentRole] = useState<null | "SUPER_ADMIN" | "CASHIER" | "REPAIR_STAFF">(null);
@@ -539,6 +542,9 @@ export default function RepairsPage() {
     setDescription("");
     setCreateError(null);
     setViewMode(false);
+    setEditMode(false);
+    setEditingRepairId(null);
+    setInitialDeliveryDate(null);
   }
 
   function intakeToApi(value: string) {
@@ -613,6 +619,54 @@ export default function RepairsPage() {
         err instanceof Error ? err.message : "Unable to create repair."
       );
       setConfirmOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleUpdateRepair() {
+    if (!editingRepairId || !selectedBrand || !selectedStore) {
+      return;
+    }
+    if (!billNo.trim() || !totalAmount || !advanceAmount || !selectedDate) {
+      setCreateError("Please complete all required fields.");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const response = await fetch("/api/repairs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingRepairId,
+          billNo: billNo.trim(),
+          brandId: selectedBrand.id,
+          intakeType: intakeToApi(intakeType),
+          storeId: selectedStore.id,
+          totalAmount: Number(totalAmount),
+          advanceAmount: Number(advanceAmount),
+          estimatedDeliveryDate: selectedDate,
+          description: description.trim() ? description.trim() : null,
+          isPostponed: initialDeliveryDate
+            ? selectedDate !== initialDeliveryDate
+            : null,
+        }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || "Unable to update repair.");
+      }
+      setIsModalOpen(false);
+      resetRepairForm();
+      loadRepairs();
+    } catch (err) {
+      setCreateError(
+        err instanceof Error ? err.message : "Unable to update repair."
+      );
     } finally {
       setCreating(false);
     }
@@ -892,8 +946,41 @@ export default function RepairsPage() {
                     >
                       {statusUpdatingId === repair.id ? "Updating..." : "Update Status"}
                     </button>
-                    <button className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-                      Postpone
+                    <button
+                      className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                      onClick={() => {
+                        setEditMode(true);
+                        setViewMode(false);
+                        setEditingRepairId(repair.id);
+                        setBillNo(repair.billNo);
+                        setSelectedClient({
+                          id: repair.client.id,
+                          name: repair.client.name,
+                          mobile: repair.client.mobile,
+                        });
+                        setSelectedBrand({
+                          id: repair.brand.id,
+                          name: repair.brand.name,
+                        });
+                        setSelectedStore({
+                          id: repair.store.id,
+                          name: repair.store.name,
+                        });
+                        setIntakeType(
+                          repair.intakeType === "COURIER" ? "Courier" : "Walk-in"
+                        );
+                        setTotalAmount(String(repair.totalAmount));
+                        setAdvanceAmount(String(repair.advanceAmount));
+                        const dateValue = new Date(repair.estimatedDeliveryDate)
+                          .toISOString()
+                          .slice(0, 10);
+                        setSelectedDate(dateValue);
+                        setInitialDeliveryDate(dateValue);
+                        setDescription(repair.description ?? "");
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Edit/Reschedule
                     </button>
                   </div>
                 </div>
@@ -927,6 +1014,7 @@ export default function RepairsPage() {
                           .slice(0, 10)
                       );
                       setDescription(repair.description ?? "");
+                      setEditMode(false);
                       setIsModalOpen(true);
                     }}
                   >
@@ -1033,12 +1121,12 @@ export default function RepairsPage() {
                       type="button"
                       className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
                       onClick={() => {
-                        if (!viewMode) {
+                        if (!viewMode && !editMode) {
                           setClientOpen((prev) => !prev);
                         }
                       }}
                       aria-expanded={clientOpen}
-                      disabled={viewMode}
+                      disabled={viewMode || editMode}
                     >
                       <span>
                         {selectedClient
@@ -1423,9 +1511,9 @@ export default function RepairsPage() {
                   <button
                     type="button"
                     className="h-10 rounded-full bg-[var(--accent)] px-6 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
-                    onClick={handleCreateRepair}
+                    onClick={editMode ? handleUpdateRepair : handleCreateRepair}
                   >
-                    Save Repair
+                    {editMode ? "Update Repair" : "Save Repair"}
                   </button>
                 ) : null}
               </div>

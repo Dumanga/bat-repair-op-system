@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
-import { hashSessionToken } from "@/lib/auth/session";
+import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 
 const statusOrder = [
   "PENDING",
@@ -24,9 +24,10 @@ function parseNumber(value: string | null, fallback: number) {
   return Number.isFinite(num) && num > 0 ? num : fallback;
 }
 
-async function requireUser() {
+async function requireUser(request: Request) {
   const cookieStore = await cookies();
-  const token = cookieStore.get("dob_session")?.value;
+  const portal = getPortalFromPath(new URL(request.url).pathname);
+  const token = cookieStore.get(getSessionCookieName(portal))?.value;
 
   if (!token) {
     return null;
@@ -47,7 +48,18 @@ async function requireUser() {
     return null;
   }
 
-  if (session.user.system !== "OPERATION" && session.user.system !== "BOTH") {
+  if (
+    portal === "OPERATION" &&
+    session.user.system !== "OPERATION" &&
+    session.user.system !== "BOTH"
+  ) {
+    return null;
+  }
+  if (
+    portal === "ACCOUNTING" &&
+    session.user.system !== "ACCOUNTING" &&
+    session.user.system !== "BOTH"
+  ) {
     return null;
   }
 
@@ -157,7 +169,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(request);
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
@@ -335,7 +347,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(request);
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
@@ -344,12 +356,30 @@ export async function PATCH(request: Request) {
 
     const body = (await request.json()) as {
       id?: unknown;
+      billNo?: unknown;
+      brandId?: unknown;
+      intakeType?: unknown;
+      storeId?: unknown;
+      totalAmount?: unknown;
+      advanceAmount?: unknown;
+      description?: unknown;
       status?: unknown;
       estimatedDeliveryDate?: unknown;
       isPostponed?: unknown;
     };
 
     const id = typeof body.id === "string" ? body.id.trim() : "";
+    const billNo = typeof body.billNo === "string" ? body.billNo.trim() : "";
+    const brandId = typeof body.brandId === "string" ? body.brandId.trim() : "";
+    const intakeRaw = typeof body.intakeType === "string" ? body.intakeType.trim() : "";
+    const intakeType = intakeTypeMap[intakeRaw as keyof typeof intakeTypeMap];
+    const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
+    const totalAmount = typeof body.totalAmount === "number" ? body.totalAmount : null;
+    const advanceAmount = typeof body.advanceAmount === "number" ? body.advanceAmount : null;
+    const description =
+      typeof body.description === "string" && body.description.trim()
+        ? body.description.trim()
+        : null;
     const nextStatus = normalizeStatus(body.status);
     const isPostponed = typeof body.isPostponed === "boolean" ? body.isPostponed : null;
     const estimatedDeliveryDate =
@@ -376,6 +406,105 @@ export async function PATCH(request: Request) {
 
     const updateData: Record<string, unknown> = {};
     const audits: Array<{ eventType: string; oldValue: string | null; newValue: string | null }> = [];
+
+    if (billNo && billNo !== repair.billNo) {
+      updateData.billNo = billNo;
+      audits.push({
+        eventType: "BILL_UPDATED",
+        oldValue: repair.billNo,
+        newValue: billNo,
+      });
+    }
+
+    if (brandId && brandId !== repair.brandId) {
+      const brand = await prisma.brand.findUnique({ where: { id: brandId } });
+      if (!brand) {
+        return NextResponse.json(
+          fail("Selected brand is invalid.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      updateData.brandId = brandId;
+      audits.push({
+        eventType: "BRAND_CHANGED",
+        oldValue: repair.brandId,
+        newValue: brandId,
+      });
+    }
+
+    if (storeId && storeId !== repair.storeId) {
+      const store = await prisma.store.findUnique({ where: { id: storeId } });
+      if (!store) {
+        return NextResponse.json(
+          fail("Selected store is invalid.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      updateData.storeId = storeId;
+      audits.push({
+        eventType: "STORE_CHANGED",
+        oldValue: repair.storeId,
+        newValue: storeId,
+      });
+    }
+
+    if (intakeType && intakeType !== repair.intakeType) {
+      updateData.intakeType = intakeType;
+      audits.push({
+        eventType: "INTAKE_CHANGED",
+        oldValue: repair.intakeType,
+        newValue: intakeType,
+      });
+    }
+
+    if (totalAmount !== null && Number.isFinite(totalAmount)) {
+      if (totalAmount <= 0) {
+        return NextResponse.json(
+          fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      if (totalAmount !== repair.totalAmount) {
+        updateData.totalAmount = totalAmount;
+        audits.push({
+          eventType: "TOTAL_UPDATED",
+          oldValue: String(repair.totalAmount),
+          newValue: String(totalAmount),
+        });
+      }
+    }
+
+    if (advanceAmount !== null && Number.isFinite(advanceAmount)) {
+      if (advanceAmount < 0) {
+        return NextResponse.json(
+          fail("Advance amount must be zero or more.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      if (advanceAmount > (totalAmount ?? repair.totalAmount)) {
+        return NextResponse.json(
+          fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      if (advanceAmount !== repair.advanceAmount) {
+        updateData.advanceAmount = advanceAmount;
+        audits.push({
+          eventType: "ADVANCE_UPDATED",
+          oldValue: String(repair.advanceAmount),
+          newValue: String(advanceAmount),
+        });
+      }
+    }
+
+    if (description !== null && description !== repair.description) {
+      updateData.description = description;
+      audits.push({
+        eventType: "DESCRIPTION_UPDATED",
+        oldValue: repair.description ?? "",
+        newValue: description,
+      });
+    }
 
     if (nextStatus && nextStatus !== repair.status) {
       const currentIndex = statusOrder.indexOf(repair.status);
@@ -410,13 +539,15 @@ export async function PATCH(request: Request) {
           Number(dateMatch[3])
         )
       );
-      updateData.estimatedDeliveryDate = dateOnly;
-      updateData.isPostponed = true;
-      audits.push({
-        eventType: "RESCHEDULED",
-        oldValue: repair.estimatedDeliveryDate.toISOString(),
-        newValue: dateOnly.toISOString(),
-      });
+      if (dateOnly.getTime() !== repair.estimatedDeliveryDate.getTime()) {
+        updateData.estimatedDeliveryDate = dateOnly;
+        updateData.isPostponed = true;
+        audits.push({
+          eventType: "RESCHEDULED",
+          oldValue: repair.estimatedDeliveryDate.toISOString(),
+          newValue: dateOnly.toISOString(),
+        });
+      }
     } else if (isPostponed !== null) {
       updateData.isPostponed = isPostponed;
       audits.push({
@@ -462,7 +593,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const user = await requireUser();
+    const user = await requireUser(request);
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,

@@ -373,6 +373,45 @@
 ## 2026-02-12 19:32
 - Fixed Repairs create modal spacing and scroll locking so only the modal scrolls.
 
+## 2026-02-12 20:35
+- Added Edit/Reschedule flow for repairs with client locked and reschedule detection.
+
+## 2026-02-12 21:51
+- Moved theme toggle, admin badge, and logout controls into Settings; added header logo.
+
+## 2026-02-12 21:52
+- Increased header logo size.
+
+## 2026-02-12 21:55
+- Switched header right-side glow to a white fade.
+
+## 2026-02-12 22:05
+- Split sessions by portal with separate cookies and logout routes for operation/accounting.
+
+## 2026-02-12 22:13
+- Added public tracking page UI and base URL env entries.
+
+## 2026-02-12 23:06
+- Fixed tracking page horizontal overflow and added logo.
+
+## 2026-02-12 23:07
+- Clipped tracking page background overflow and adjusted logo size.
+
+## 2026-02-12 23:10
+- Increased tracking page logo height.
+
+## 2026-02-12 23:11
+- Adjusted tracking page logo sizing to match admin header proportions.
+
+## 2026-02-12 23:12
+- Increased tracking page logo size further.
+
+## 2026-02-12 23:13
+- Placed tracking logo and chip on the same line.
+
+## 2026-02-12 23:16
+- Replaced tracking form with repair details summary on tracking page.
+
 ## 2026-02-12 00:00
 - Added 10 seeded clients to Prisma seed and ran the seed script.
 

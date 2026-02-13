@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
-import { hashSessionToken } from "@/lib/auth/session";
+import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("dob_session")?.value;
+    const portal = getPortalFromPath(new URL(request.url).pathname);
+    const token = cookieStore.get(getSessionCookieName(portal))?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -31,6 +32,27 @@ export async function GET(request: Request) {
       return NextResponse.json(
         fail("Not authenticated.", "UNAUTHORIZED"),
         { status: 401 }
+      );
+    }
+
+    if (
+      portal === "OPERATION" &&
+      session.user.system !== "OPERATION" &&
+      session.user.system !== "BOTH"
+    ) {
+      return NextResponse.json(
+        fail("Not authorized for this portal.", "FORBIDDEN"),
+        { status: 403 }
+      );
+    }
+    if (
+      portal === "ACCOUNTING" &&
+      session.user.system !== "ACCOUNTING" &&
+      session.user.system !== "BOTH"
+    ) {
+      return NextResponse.json(
+        fail("Not authorized for this portal.", "FORBIDDEN"),
+        { status: 403 }
       );
     }
 

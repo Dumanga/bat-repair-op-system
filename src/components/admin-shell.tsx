@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Settings } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Menu } from "lucide-react";
 
 type CurrentUser = {
   displayName: string;
@@ -33,7 +32,6 @@ const navItems = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [imageError, setImageError] = useState(false);
   const visibleNavItems = currentUser
@@ -101,7 +99,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       >
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-10 h-64 w-64 rounded-full bg-[var(--accent-soft)] blur-3xl" />
-          <div className="absolute right-[-12%] top-[-25%] h-80 w-80 rounded-full bg-orange-400/20 blur-3xl" />
+          <div className="absolute right-[-12%] top-[-25%] h-80 w-80 rounded-full bg-white/15 blur-3xl" />
           <div className="absolute bottom-[-30%] left-1/2 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
         </div>
         <div className="relative z-10 mx-auto flex w-full max-w-[110rem] flex-col gap-4 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
@@ -127,50 +125,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               {mobileNavOpen ? "Close" : "Menu"}
               <Menu className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              className="flex h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)] lg:hidden"
-              onClick={() => setMobileControlsOpen((open) => !open)}
-              aria-expanded={mobileControlsOpen}
-              aria-controls="admin-mobile-controls"
-            >
-              {mobileControlsOpen ? "Close" : "Settings"}
-              <Settings className="h-4 w-4" />
-            </button>
-            <div className="hidden lg:flex">
-              <ThemeToggle />
+            <div className="flex items-center">
+              <img
+                src="/assets/logo-dob.png"
+                alt="Doctor of Bat logo"
+                className="h-16 w-auto opacity-95 sm:h-20"
+              />
             </div>
-            <div className="hidden h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] lg:flex">
-              Super Admin
-              <span className="inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
-            </div>
-            <form action="/operation/logout" method="post" className="hidden lg:block">
-              <button className="h-10 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-600 transition hover:bg-rose-500/20">
-                Logout
-              </button>
-            </form>
           </div>
         </div>
-
-        {mobileControlsOpen ? (
-          <div
-            id="admin-mobile-controls"
-            className="lg:hidden border-t border-[var(--stroke)] bg-[var(--panel)]"
-          >
-            <div className="mx-auto flex w-full max-w-[110rem] flex-wrap items-center gap-3 px-6 py-4 text-sm text-[var(--text-muted)]">
-              <ThemeToggle />
-              <div className="flex h-10 items-center gap-2 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)]">
-                Super Admin
-                <span className="inline-flex h-2 w-2 rounded-full bg-[var(--accent)]" />
-              </div>
-              <form action="/operation/logout" method="post">
-                <button className="h-10 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-600 transition hover:bg-rose-500/20">
-                  Logout
-                </button>
-              </form>
-            </div>
-          </div>
-        ) : null}
 
         {mobileNavOpen ? (
           <div
