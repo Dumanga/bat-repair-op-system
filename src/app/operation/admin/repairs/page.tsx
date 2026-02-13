@@ -1673,7 +1673,7 @@ export default function RepairsPage() {
         </>
       )}
 
-      {(showCreateForm || isModalOpen) ? (
+      {showCreateForm || isModalOpen ? (
         <div
           className={
             showCreateForm
@@ -1681,7 +1681,13 @@ export default function RepairsPage() {
               : "fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
           }
         >
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
+          <div
+            className={
+              showCreateForm
+                ? "w-full rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6"
+                : "w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl"
+            }
+          >
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
                 New Repair
@@ -1698,7 +1704,7 @@ export default function RepairsPage() {
                   {createError}
                 </div>
               ) : null}
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-3">
                 <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
                     Bill number <span className="text-rose-400">*</span>
@@ -1801,8 +1807,6 @@ export default function RepairsPage() {
                     ) : null}
                   </div>
                 </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
                 <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
                     Bat brand <span className="text-rose-400">*</span>
@@ -1884,6 +1888,8 @@ export default function RepairsPage() {
                     ) : null}
                   </div>
                 </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
                 <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
                     Intake type <span className="text-rose-400">*</span>
@@ -1931,8 +1937,6 @@ export default function RepairsPage() {
                     ) : null}
                   </div>
                 </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-1">
                 <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
                     Store <span className="text-rose-400">*</span>
@@ -2021,20 +2025,20 @@ export default function RepairsPage() {
                     ) : null}
                   </div>
                 </div>
-                              </div>
-              <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                <span>
-                  Estimated delivery date <span className="text-rose-400">*</span>
-                </span>
-                <DeliveryDatePicker
-                  value={selectedDate}
-                  onChange={setSelectedDate}
-                  countsByDate={deliveryCounts}
-                  disabled={viewMode}
-                  onMonthChange={handleCalendarMonthChange}
-                  loading={calendarLoading}
-                />
-              </label>
+                <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                  <span>
+                    Estimated delivery date <span className="text-rose-400">*</span>
+                  </span>
+                  <DeliveryDatePicker
+                    value={selectedDate}
+                    onChange={setSelectedDate}
+                    countsByDate={deliveryCounts}
+                    disabled={viewMode}
+                    onMonthChange={handleCalendarMonthChange}
+                    loading={calendarLoading}
+                  />
+                </label>
+              </div>
               {calendarError ? (
                 <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
                   {calendarError}

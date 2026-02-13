@@ -429,3 +429,12 @@
 
 ## 2026-02-13 15:22
 - Noted that a stray duplicated JSX block caused a Repairs page parse error; removed it and will avoid repeating this mistake.
+
+## 2026-02-13 15:31
+- Adjusted the Repairs create form wrapper to render full-width when using the inline view instead of the modal popup container.
+
+## 2026-02-13 15:40
+- Reorganized Repairs create form fields into two desktop rows: bill/client/brand and intake/store/estimated date.
+
+## 2026-02-13 15:46
+- Fixed an extra closing div in the Repairs create form row to resolve the JSX parse error.
