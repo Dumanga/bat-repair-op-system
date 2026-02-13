@@ -143,7 +143,7 @@ export async function GET(request: Request) {
           client: true,
           brand: true,
           store: true,
-          items: true,
+          items: { include: { repairType: true } },
         },
       }),
       prisma.repair.count({ where }),

@@ -1529,7 +1529,9 @@ export default function RepairsPage() {
                             repair.items.map((item, index) => ({
                               id: item.id || `item-${index + 1}`,
                               repairTypeId: item.repairTypeId,
-                              repairTypeName: "",
+                              repairTypeName: item.repairType
+                                ? `${item.repairType.code} - ${item.repairType.name}`
+                                : "",
                               price: String(item.price),
                             }))
                           );
@@ -1560,7 +1562,7 @@ export default function RepairsPage() {
                   <button
                     className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)]"
                       onClick={() => {
-                      setShowCreateForm(false);
+                      setShowCreateForm(true);
                       setViewMode(true);
                       setBillNo(repair.billNo);
                       setSelectedClient({
@@ -1586,7 +1588,9 @@ export default function RepairsPage() {
                           repair.items.map((item, index) => ({
                             id: item.id || `item-${index + 1}`,
                             repairTypeId: item.repairTypeId,
-                            repairTypeName: "",
+                            repairTypeName: item.repairType
+                              ? `${item.repairType.code} - ${item.repairType.name}`
+                              : "",
                             price: String(item.price),
                           }))
                         );
@@ -1607,7 +1611,7 @@ export default function RepairsPage() {
                       );
                       setDescription(repair.description ?? "");
                       setEditMode(false);
-                      setIsModalOpen(true);
+                      setIsModalOpen(false);
                     }}
                   >
                     View
@@ -1704,6 +1708,114 @@ export default function RepairsPage() {
                   {createError}
                 </div>
               ) : null}
+              {viewMode ? (
+                <div className="grid gap-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Bill number
+                      </p>
+                      <p className="mt-2 font-semibold">{billNo || "—"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Client
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {selectedClient
+                          ? `${selectedClient.name} · ${formatMobile(
+                              selectedClient.mobile
+                            )}`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Bat brand
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {selectedBrand?.name ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Intake type
+                      </p>
+                      <p className="mt-2 font-semibold">{intakeType}</p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Store
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {selectedStore?.name ?? "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Estimated delivery
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {selectedDate
+                          ? new Date(selectedDate).toLocaleDateString()
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Repair items
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">
+                          Items included in this job.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      {repairItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--stroke)] bg-[var(--panel)] px-3 py-2 text-sm"
+                        >
+                          <span className="text-[var(--foreground)]">
+                            {item.repairTypeName || "Repair item"}
+                          </span>
+                          <span className="text-xs text-[var(--text-muted)]">
+                            LKR {Number(item.price || 0).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center justify-end gap-4 text-xs text-[var(--text-muted)]">
+                      <div className="flex items-center gap-2">
+                        <span className="uppercase tracking-[0.2em]">Advance</span>
+                        <span className="rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-3 py-1 text-[var(--foreground)]">
+                          LKR {Number(advanceAmount || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="uppercase tracking-[0.2em]">Total</span>
+                        <span className="rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-3 py-1 text-[var(--foreground)]">
+                          LKR {computedTotalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                      Description
+                    </p>
+                    <p className="mt-2 text-[var(--foreground)]">
+                      {description?.trim() ? description : "No description added."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
               <div className="grid gap-3 md:grid-cols-3">
                 <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
@@ -2226,6 +2338,8 @@ export default function RepairsPage() {
                   disabled={viewMode}
                 />
               </label>
+                </>
+              )}
               <div className="flex flex-wrap justify-end gap-3">
                 <button
                   type="button"

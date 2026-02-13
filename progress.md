@@ -438,3 +438,9 @@
 
 ## 2026-02-13 15:46
 - Fixed an extra closing div in the Repairs create form row to resolve the JSX parse error.
+
+## 2026-02-13 15:55
+- Added a read-only summary layout for Repairs view mode and routed View to the inline create-style panel.
+
+## 2026-02-13 16:04
+- Included repair type details in repairs API responses and used them to show proper item names in view mode.
