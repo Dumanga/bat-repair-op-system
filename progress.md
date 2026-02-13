@@ -417,3 +417,15 @@
 
 ## 2026-02-12 00:06
 - Reset Repair create form fields when canceling the modal.
+
+## 2026-02-13 14:25
+- Restored Repairs Repair Types toggle view, inline Create Repair view, and invoice-style repair items in the create form.
+
+## 2026-02-13 15:08
+- Fixed Repairs page conditional render block by wrapping the KPI/list section in a fragment to resolve JSX parse errors.
+
+## 2026-02-13 15:18
+- Removed stray duplicated JSX appended after the Repairs page component closing brace to fix parse errors.
+
+## 2026-02-13 15:22
+- Noted that a stray duplicated JSX block caused a Repairs page parse error; removed it and will avoid repeating this mistake.

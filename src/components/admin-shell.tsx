@@ -219,7 +219,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <div className="mt-8 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-xs text-[var(--text-muted)]">
+          <div
+            className="mt-8 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-xs text-[var(--text-muted)]"
+            suppressHydrationWarning
+          >
             Next audit sync in <span className="text-white">3 hrs</span>
           </div>
         </aside>

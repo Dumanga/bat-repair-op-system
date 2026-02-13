@@ -37,6 +37,8 @@ type RepairItem = {
   isPostponed: boolean;
   client: { id: string; name: string; mobile: string };
   brand: { id: string; name: string };
+  repairTypeId?: string | null;
+  items?: Array<{ id: string; repairTypeId: string; price: number }>;
   store: { id: string; name: string };
 };
 
@@ -65,6 +67,20 @@ type StoreOption = {
   city?: string;
 };
 
+type RepairTypeItem = {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+};
+
+type RepairLineItem = {
+  id: string;
+  repairTypeId: string;
+  repairTypeName: string;
+  price: string;
+};
+
 function formatMobile(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.startsWith("94") && digits.length === 11) {
@@ -75,6 +91,8 @@ function formatMobile(value: string) {
 
 export default function RepairsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showRepairTypes, setShowRepairTypes] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [intakeOpen, setIntakeOpen] = useState(false);
@@ -89,6 +107,7 @@ export default function RepairsPage() {
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [billNo, setBillNo] = useState("");
+  const [billLoading, setBillLoading] = useState(false);
   const [brandOpen, setBrandOpen] = useState(false);
   const [brands, setBrands] = useState<BrandOption[]>([]);
   const [brandSearch, setBrandSearch] = useState("");
@@ -131,15 +150,52 @@ export default function RepairsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<RepairItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [repairTypeSearch, setRepairTypeSearch] = useState("");
+  const [repairTypePage, setRepairTypePage] = useState(1);
+  const [repairTypes, setRepairTypes] = useState<RepairTypeItem[]>([]);
+  const [repairTypeTotal, setRepairTypeTotal] = useState(0);
+  const repairTypePageSize = 10;
+  const [repairTypeLoading, setRepairTypeLoading] = useState(false);
+  const [repairTypeError, setRepairTypeError] = useState<string | null>(null);
+  const [repairTypeName, setRepairTypeName] = useState("");
+  const [repairTypeCode, setRepairTypeCode] = useState("");
+  const [repairTypeSaving, setRepairTypeSaving] = useState(false);
+  const [repairTypeEditingId, setRepairTypeEditingId] = useState<string | null>(null);
+  const [repairTypeDeleteOpen, setRepairTypeDeleteOpen] = useState(false);
+  const [pendingRepairTypeDelete, setPendingRepairTypeDelete] =
+    useState<RepairTypeItem | null>(null);
   const [deliveryCounts, setDeliveryCounts] = useState<Record<string, number>>(
     {}
   );
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [validationOpen, setValidationOpen] = useState(false);
+  const [validationMessage, setValidationMessage] = useState("");
+  const [repairTypeOptions, setRepairTypeOptions] = useState<RepairTypeItem[]>([]);
+  const [repairTypeOptionsLoading, setRepairTypeOptionsLoading] = useState(false);
+  const [repairTypeOpenId, setRepairTypeOpenId] = useState<string | null>(null);
+  const [repairTypeSearchTerm, setRepairTypeSearchTerm] = useState("");
+  const [repairItems, setRepairItems] = useState<RepairLineItem[]>([
+    { id: "item-1", repairTypeId: "", repairTypeName: "", price: "" },
+  ]);
 
   const totalRepairPages = useMemo(() => {
     return Math.max(1, Math.ceil(repairsTotal / repairsPageSize));
   }, [repairsTotal, repairsPageSize]);
+
+  const totalRepairTypePages = useMemo(() => {
+    return Math.max(1, Math.ceil(repairTypeTotal / repairTypePageSize));
+  }, [repairTypeTotal, repairTypePageSize]);
+
+  const computedTotalAmount = useMemo(() => {
+    return repairItems.reduce((sum, item) => {
+      const value = Number(item.price);
+      if (!Number.isFinite(value)) {
+        return sum;
+      }
+      return sum + value;
+    }, 0);
+  }, [repairItems]);
 
   const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
     setCalendarLoading(true);
@@ -208,7 +264,62 @@ export default function RepairsPage() {
   }, [loadRepairs]);
 
   useEffect(() => {
-    const shouldLock = isModalOpen || confirmOpen || statusConfirmOpen || deleteConfirmOpen;
+    setTotalAmount(String(computedTotalAmount));
+  }, [computedTotalAmount]);
+
+  const loadRepairTypes = useCallback(async () => {
+    if (!showRepairTypes) {
+      return;
+    }
+    setRepairTypeLoading(true);
+    setRepairTypeError(null);
+    try {
+      const params = new URLSearchParams({
+        page: String(repairTypePage),
+        pageSize: String(repairTypePageSize),
+      });
+      if (repairTypeSearch.trim()) {
+        params.set("search", repairTypeSearch.trim());
+      }
+      const response = await fetch(`/api/repair-types?${params.toString()}`);
+      const payload = (await response.json()) as {
+        success: boolean;
+        data: { items: RepairTypeItem[]; total: number } | null;
+        message: string;
+      };
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message || "Unable to load repair types.");
+      }
+      setRepairTypes(payload.data.items);
+      setRepairTypeTotal(payload.data.total);
+    } catch (err) {
+      setRepairTypeError(
+        err instanceof Error ? err.message : "Unable to load repair types."
+      );
+    } finally {
+      setRepairTypeLoading(false);
+    }
+  }, [repairTypePage, repairTypePageSize, repairTypeSearch, showRepairTypes]);
+
+  useEffect(() => {
+    loadRepairTypes();
+  }, [loadRepairTypes]);
+
+  useEffect(() => {
+    if (!showRepairTypes) {
+      return;
+    }
+    setRepairTypePage(1);
+  }, [showRepairTypes, repairTypeSearch]);
+
+  useEffect(() => {
+    const shouldLock =
+      isModalOpen ||
+      confirmOpen ||
+      statusConfirmOpen ||
+      deleteConfirmOpen ||
+      repairTypeDeleteOpen ||
+      validationOpen;
     if (shouldLock) {
       document.body.style.overflow = "hidden";
       return () => {
@@ -217,7 +328,104 @@ export default function RepairsPage() {
     }
     document.body.style.overflow = "";
     return undefined;
-  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen]);
+  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen, repairTypeDeleteOpen, validationOpen]);
+
+  useEffect(() => {
+    if (!showCreateForm || editMode) {
+      return;
+    }
+    let active = true;
+    async function loadBillNo() {
+      setBillLoading(true);
+      try {
+        const response = await fetch("/api/repairs/next-bill");
+        const payload = (await response.json()) as {
+          success: boolean;
+          data: { billNo: string } | null;
+          message: string;
+        };
+        if (!response.ok || !payload.success || !payload.data) {
+          throw new Error(payload.message || "Unable to load bill number.");
+        }
+        if (active) {
+          setBillNo(payload.data.billNo);
+        }
+      } catch {
+        if (active) {
+          setBillNo("");
+        }
+      } finally {
+        if (active) {
+          setBillLoading(false);
+        }
+      }
+    }
+
+    loadBillNo();
+    return () => {
+      active = false;
+    };
+  }, [showCreateForm, editMode]);
+
+  useEffect(() => {
+    if (!showCreateForm || !repairTypeOpenId) {
+      return;
+    }
+    let active = true;
+    const searchTerm = repairTypeSearchTerm.trim();
+    const timeout = setTimeout(async () => {
+      setRepairTypeOptionsLoading(true);
+      try {
+        const collected: RepairTypeItem[] = [];
+        let page = 1;
+        let hasMore = true;
+        const pageSize = 50;
+
+        while (hasMore && page <= 20) {
+          const params = new URLSearchParams({
+            page: String(page),
+            pageSize: String(pageSize),
+          });
+          if (searchTerm) {
+            params.set("search", searchTerm);
+          }
+          const response = await fetch(`/api/repair-types?${params.toString()}`);
+          const payload = (await response.json()) as {
+            success: boolean;
+            data: { items: RepairTypeItem[]; total: number; pageSize: number } | null;
+            message: string;
+          };
+          if (!response.ok || !payload.success || !payload.data) {
+            throw new Error(payload.message || "Unable to load repair types.");
+          }
+          collected.push(...payload.data.items);
+          const loaded = page * payload.data.pageSize;
+          hasMore = loaded < payload.data.total;
+          if (!searchTerm) {
+            hasMore = false;
+          }
+          page += 1;
+        }
+
+        if (active) {
+          setRepairTypeOptions(collected.filter((item) => item.isActive));
+        }
+      } catch {
+        if (active) {
+          setRepairTypeOptions([]);
+        }
+      } finally {
+        if (active) {
+          setRepairTypeOptionsLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [showCreateForm, repairTypeOpenId, repairTypeSearchTerm]);
 
   useEffect(() => {
     let active = true;
@@ -545,10 +753,86 @@ export default function RepairsPage() {
     setEditMode(false);
     setEditingRepairId(null);
     setInitialDeliveryDate(null);
+    setRepairItems([{ id: "item-1", repairTypeId: "", repairTypeName: "", price: "" }]);
+    setRepairTypeOpenId(null);
+    setRepairTypeSearchTerm("");
+  }
+
+  function resetRepairTypeForm() {
+    setRepairTypeName("");
+    setRepairTypeCode("");
+    setRepairTypeEditingId(null);
+  }
+
+  function updateRepairItem(
+    id: string,
+    updates: Partial<Pick<RepairLineItem, "repairTypeId" | "repairTypeName" | "price">>
+  ) {
+    setRepairItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+  }
+
+  function addRepairItem() {
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `item-${Date.now()}`;
+    setRepairItems((prev) => [
+      ...prev,
+      { id, repairTypeId: "", repairTypeName: "", price: "" },
+    ]);
+    setRepairTypeSearchTerm("");
+  }
+
+  function removeRepairItem(id: string) {
+    setRepairItems((prev) => {
+      if (prev.length <= 1) {
+        return prev;
+      }
+      return prev.filter((item) => item.id !== id);
+    });
+    if (repairTypeOpenId === id) {
+      setRepairTypeOpenId(null);
+    }
   }
 
   function intakeToApi(value: string) {
     return value === "Courier" ? "Courier" : "Walk-in";
+  }
+
+  function validateRepairForm(): string | null {
+    if (!billNo.trim()) {
+      return "Bill number is loading. Please try again in a moment.";
+    }
+    if (!selectedClient) {
+      return "Client is required.";
+    }
+    if (!selectedBrand) {
+      return "Bat brand is required.";
+    }
+    if (!selectedStore) {
+      return "Store is required.";
+    }
+    if (!selectedDate) {
+      return "Estimated delivery date is required.";
+    }
+    const hasSelectedItem = repairItems.some((item) => item.repairTypeId);
+    if (!hasSelectedItem) {
+      return "At least one repair item with a price is required.";
+    }
+    const hasIncompleteItem = repairItems.some(
+      (item) =>
+        (item.repairTypeId && Number(item.price) <= 0) ||
+        (!item.repairTypeId && item.price)
+    );
+    if (hasIncompleteItem) {
+      return "Each selected repair item must have a price.";
+    }
+    if (computedTotalAmount <= 0) {
+      return "Total amount must be greater than 0.";
+    }
+    return null;
   }
 
   function nextStatus(status: RepairItem["status"]) {
@@ -565,19 +849,80 @@ export default function RepairsPage() {
   }
 
   async function handleCreateRepair() {
-    if (
-      !billNo.trim() ||
-      !selectedClient ||
-      !selectedBrand ||
-      !selectedStore ||
-      !totalAmount ||
-      !advanceAmount ||
-      !selectedDate
-    ) {
-      setCreateError("Please complete all required fields.");
+    const validation = validateRepairForm();
+    if (validation) {
+      setValidationMessage(validation);
+      setValidationOpen(true);
       return;
     }
     setConfirmOpen(true);
+  }
+
+  async function handleSaveRepairType() {
+    if (!repairTypeName.trim() || !repairTypeCode.trim()) {
+      setRepairTypeError("Repair type name and code are required.");
+      return;
+    }
+
+    setRepairTypeSaving(true);
+    setRepairTypeError(null);
+    try {
+      const payload = {
+        name: repairTypeName.trim(),
+        code: repairTypeCode.trim(),
+        ...(repairTypeEditingId ? { id: repairTypeEditingId } : {}),
+      };
+      const response = await fetch("/api/repair-types", {
+        method: repairTypeEditingId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to save repair type.");
+      }
+      resetRepairTypeForm();
+      await loadRepairTypes();
+    } catch (err) {
+      setRepairTypeError(
+        err instanceof Error ? err.message : "Unable to save repair type."
+      );
+    } finally {
+      setRepairTypeSaving(false);
+    }
+  }
+
+  async function confirmDeleteRepairType() {
+    if (!pendingRepairTypeDelete) {
+      return;
+    }
+    setRepairTypeSaving(true);
+    try {
+      const response = await fetch("/api/repair-types", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pendingRepairTypeDelete.id }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || "Unable to delete repair type.");
+      }
+      setRepairTypeDeleteOpen(false);
+      setPendingRepairTypeDelete(null);
+      await loadRepairTypes();
+    } catch (err) {
+      setRepairTypeError(
+        err instanceof Error ? err.message : "Unable to delete repair type."
+      );
+    } finally {
+      setRepairTypeSaving(false);
+    }
   }
 
   async function confirmCreateRepair() {
@@ -587,6 +932,14 @@ export default function RepairsPage() {
     setCreating(true);
     setCreateError(null);
     try {
+      const primaryRepairTypeId =
+        repairItems.find((item) => item.repairTypeId)?.repairTypeId ?? null;
+      const itemsPayload = repairItems
+        .filter((item) => item.repairTypeId && Number(item.price) > 0)
+        .map((item) => ({
+          repairTypeId: item.repairTypeId,
+          price: Number(item.price),
+        }));
       const response = await fetch("/api/repairs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -596,8 +949,10 @@ export default function RepairsPage() {
           brandId: selectedBrand.id,
           intakeType: intakeToApi(intakeType),
           storeId: selectedStore.id,
-          totalAmount: Number(totalAmount),
-          advanceAmount: Number(advanceAmount),
+          repairTypeId: primaryRepairTypeId,
+          items: itemsPayload,
+          totalAmount: computedTotalAmount,
+          advanceAmount: Number(advanceAmount || 0),
           estimatedDeliveryDate: selectedDate,
           description: description.trim() ? description.trim() : null,
         }),
@@ -610,7 +965,7 @@ export default function RepairsPage() {
         throw new Error(payload.message || "Unable to create repair.");
       }
       setConfirmOpen(false);
-      setIsModalOpen(false);
+      setShowCreateForm(false);
       resetRepairForm();
       setRepairsPage(1);
       loadRepairs();
@@ -628,13 +983,23 @@ export default function RepairsPage() {
     if (!editingRepairId || !selectedBrand || !selectedStore) {
       return;
     }
-    if (!billNo.trim() || !totalAmount || !advanceAmount || !selectedDate) {
-      setCreateError("Please complete all required fields.");
+    const validation = validateRepairForm();
+    if (validation) {
+      setValidationMessage(validation);
+      setValidationOpen(true);
       return;
     }
     setCreating(true);
     setCreateError(null);
     try {
+      const primaryRepairTypeId =
+        repairItems.find((item) => item.repairTypeId)?.repairTypeId ?? null;
+      const itemsPayload = repairItems
+        .filter((item) => item.repairTypeId && Number(item.price) > 0)
+        .map((item) => ({
+          repairTypeId: item.repairTypeId,
+          price: Number(item.price),
+        }));
       const response = await fetch("/api/repairs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -644,8 +1009,10 @@ export default function RepairsPage() {
           brandId: selectedBrand.id,
           intakeType: intakeToApi(intakeType),
           storeId: selectedStore.id,
-          totalAmount: Number(totalAmount),
-          advanceAmount: Number(advanceAmount),
+          repairTypeId: primaryRepairTypeId,
+          items: itemsPayload,
+          totalAmount: computedTotalAmount,
+          advanceAmount: Number(advanceAmount || 0),
           estimatedDeliveryDate: selectedDate,
           description: description.trim() ? description.trim() : null,
           isPostponed: initialDeliveryDate
@@ -761,22 +1128,207 @@ export default function RepairsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-            Export
-          </button>
-          <button
-            className="h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
-            onClick={() => {
-              setCreateError(null);
-              setIsModalOpen(true);
-            }}
-          >
-            Create Repair
-          </button>
+          {showRepairTypes ? (
+            <button
+              className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-5 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+              onClick={() => setShowRepairTypes(false)}
+            >
+              Back to Repairs
+            </button>
+          ) : showCreateForm ? (
+            <button
+              className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-5 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+              onClick={() => {
+                setShowCreateForm(false);
+                resetRepairForm();
+              }}
+            >
+              Back to Repairs
+            </button>
+          ) : (
+            <>
+              <button className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
+                Export
+              </button>
+              <button
+                className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setShowRepairTypes(true);
+                }}
+              >
+                Repair Types
+              </button>
+              <button
+                className="h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
+                onClick={() => {
+                  setCreateError(null);
+                  setShowRepairTypes(false);
+                  setShowCreateForm(true);
+                }}
+              >
+                Create Repair Job
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      {showRepairTypes ? (
+        <div className="grid gap-6">
+          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                  Repair Types
+                </p>
+                <h3 className="mt-2 text-xl font-semibold">Add a new repair type</h3>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr_0.8fr_auto]">
+              <input
+                className="h-12 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                placeholder="Repair name"
+                value={repairTypeName}
+                onChange={(event) => setRepairTypeName(event.target.value)}
+                disabled={repairTypeSaving}
+              />
+              <input
+                className="h-12 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                placeholder="Code"
+                value={repairTypeCode}
+                onChange={(event) => setRepairTypeCode(event.target.value)}
+                disabled={repairTypeSaving}
+              />
+              <button
+                className="h-10 rounded-full bg-[var(--accent)] px-6 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={handleSaveRepairType}
+                disabled={
+                  repairTypeSaving ||
+                  !repairTypeName.trim() ||
+                  !repairTypeCode.trim()
+                }
+              >
+                Save
+              </button>
+            </div>
+            {repairTypeEditingId ? (
+              <div className="mt-3 text-xs text-[var(--text-muted)]">
+                Editing selected type. Update the name or code and press Save.
+              </div>
+            ) : null}
+            {repairTypeError ? (
+              <div className="mt-3 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+                {repairTypeError}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                  Types List
+                </p>
+                <h3 className="mt-2 text-xl font-semibold">Active repair types</h3>
+              </div>
+              <input
+                className="h-10 w-56 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] outline-none transition focus:border-[var(--accent)]"
+                placeholder="Search type"
+                value={repairTypeSearch}
+                onChange={(event) => setRepairTypeSearch(event.target.value)}
+              />
+            </div>
+
+            <div className="mt-6 grid gap-3">
+              {repairTypeLoading ? (
+                <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-6 text-xs text-[var(--text-muted)]">
+                  Loading repair types...
+                </div>
+              ) : repairTypes.length === 0 ? (
+                <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-6 text-xs text-[var(--text-muted)]">
+                  No repair types found.
+                </div>
+              ) : (
+                repairTypes.map((type) => (
+                  <div
+                    key={type.id}
+                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-4 text-sm"
+                  >
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        {type.code}
+                      </p>
+                      <p className="mt-1 font-semibold">{type.name}</p>
+                      {!type.isActive ? (
+                        <p className="mt-1 text-xs text-rose-300">Inactive</p>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)]"
+                        onClick={() => {
+                          setRepairTypeEditingId(type.id);
+                          setRepairTypeName(type.name);
+                          setRepairTypeCode(type.code);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="h-9 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs text-rose-200 transition hover:bg-rose-500/20"
+                        onClick={() => {
+                          setPendingRepairTypeDelete(type);
+                          setRepairTypeDeleteOpen(true);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--text-muted)]">
+              <div>
+                Showing{" "}
+                <span className="text-[var(--foreground)]">
+                  {repairTypes.length}
+                </span>{" "}
+                of {repairTypeTotal}
+              </div>
+              <div className="flex items-center gap-2">
+                <div>
+                  Page{" "}
+                  <span className="text-[var(--foreground)]">
+                    {repairTypePage}
+                  </span>{" "}
+                  of {totalRepairTypePages}
+                </div>
+                <button
+                  className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 transition hover:bg-[var(--panel)]"
+                  onClick={() => setRepairTypePage((prev) => Math.max(1, prev - 1))}
+                  disabled={repairTypePage <= 1}
+                >
+                  Prev
+                </button>
+                <button
+                  className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 transition hover:bg-[var(--panel)]"
+                  onClick={() =>
+                    setRepairTypePage((prev) => Math.min(totalRepairTypePages, prev + 1))
+                  }
+                  disabled={repairTypePage >= totalRepairTypePages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : showCreateForm ? null : (
+        <>
+        <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
             Pending
@@ -949,6 +1501,7 @@ export default function RepairsPage() {
                     <button
                       className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
                       onClick={() => {
+                        setShowCreateForm(false);
                         setEditMode(true);
                         setViewMode(false);
                         setEditingRepairId(repair.id);
@@ -971,6 +1524,25 @@ export default function RepairsPage() {
                         );
                         setTotalAmount(String(repair.totalAmount));
                         setAdvanceAmount(String(repair.advanceAmount));
+                        if (repair.items && repair.items.length > 0) {
+                          setRepairItems(
+                            repair.items.map((item, index) => ({
+                              id: item.id || `item-${index + 1}`,
+                              repairTypeId: item.repairTypeId,
+                              repairTypeName: "",
+                              price: String(item.price),
+                            }))
+                          );
+                        } else {
+                          setRepairItems([
+                            {
+                              id: "item-1",
+                              repairTypeId: repair.repairTypeId ?? "",
+                              repairTypeName: "",
+                              price: String(repair.totalAmount),
+                            },
+                          ]);
+                        }
                         const dateValue = new Date(repair.estimatedDeliveryDate)
                           .toISOString()
                           .slice(0, 10);
@@ -987,7 +1559,8 @@ export default function RepairsPage() {
                 <div className="flex items-center justify-end gap-2">
                   <button
                     className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)]"
-                    onClick={() => {
+                      onClick={() => {
+                      setShowCreateForm(false);
                       setViewMode(true);
                       setBillNo(repair.billNo);
                       setSelectedClient({
@@ -1008,6 +1581,25 @@ export default function RepairsPage() {
                       );
                       setTotalAmount(String(repair.totalAmount));
                       setAdvanceAmount(String(repair.advanceAmount));
+                      if (repair.items && repair.items.length > 0) {
+                        setRepairItems(
+                          repair.items.map((item, index) => ({
+                            id: item.id || `item-${index + 1}`,
+                            repairTypeId: item.repairTypeId,
+                            repairTypeName: "",
+                            price: String(item.price),
+                          }))
+                        );
+                      } else {
+                        setRepairItems([
+                          {
+                            id: "item-1",
+                            repairTypeId: repair.repairTypeId ?? "",
+                            repairTypeName: "",
+                            price: String(repair.totalAmount),
+                          },
+                        ]);
+                      }
                       setSelectedDate(
                         new Date(repair.estimatedDeliveryDate)
                           .toISOString()
@@ -1078,9 +1670,17 @@ export default function RepairsPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
-      {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+      {(showCreateForm || isModalOpen) ? (
+        <div
+          className={
+            showCreateForm
+              ? ""
+              : "fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          }
+        >
           <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-2xl">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--text-muted)]">
@@ -1105,11 +1705,11 @@ export default function RepairsPage() {
                   </span>
                   <input
                     className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-                    placeholder="Enter Bill No"
+                    placeholder={billLoading ? "Loading..." : "Auto-generated"}
                     type="text"
                     value={billNo}
-                    onChange={(event) => setBillNo(event.target.value)}
-                    disabled={viewMode}
+                    readOnly
+                    disabled
                   />
                 </label>
                 <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
@@ -1332,7 +1932,7 @@ export default function RepairsPage() {
                   </div>
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-1">
                 <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                   <span>
                     Store <span className="text-rose-400">*</span>
@@ -1421,49 +2021,7 @@ export default function RepairsPage() {
                     ) : null}
                   </div>
                 </div>
-                <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  <span>
-                    Total amount <span className="text-rose-400">*</span>
-                  </span>
-                  <input
-                    className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-                    placeholder="xxxx"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\\d*"
-                    onChange={(event) => {
-                      event.currentTarget.value = event.currentTarget.value.replace(
-                        /\D/g,
-                        ""
-                      );
-                      setTotalAmount(event.currentTarget.value);
-                    }}
-                    value={totalAmount}
-                    disabled={viewMode}
-                  />
-                </label>
-                <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                  <span>
-                    Advance <span className="text-rose-400">*</span>
-                  </span>
-                  <input
-                    className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
-                    placeholder="xxxx"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\\d*"
-                    onChange={(event) => {
-                      event.currentTarget.value = event.currentTarget.value.replace(
-                        /\D/g,
-                        ""
-                      );
-                      setAdvanceAmount(event.currentTarget.value);
-                    }}
-                    value={advanceAmount}
-                    disabled={viewMode}
-                  />
-                </label>
-              </div>
+                              </div>
               <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                 <span>
                   Estimated delivery date <span className="text-rose-400">*</span>
@@ -1482,6 +2040,174 @@ export default function RepairsPage() {
                   {calendarError}
                 </div>
               ) : null}
+              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                      Repair items
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                      Add one or more repair items to build the bill.
+                    </p>
+                  </div>
+                  {!viewMode ? (
+                    <button
+                      type="button"
+                      className="h-9 rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:border-[var(--accent)]"
+                      onClick={addRepairItem}
+                    >
+                      Add Repair
+                    </button>
+                  ) : null}
+                </div>
+                <div className="mt-4 grid gap-3">
+                  {repairItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="grid gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-3 md:grid-cols-[1.2fr_0.6fr_auto]"
+                    >
+                      <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        <span>Repair type</span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
+                            onClick={() => {
+                              if (!viewMode && !repairTypeOptionsLoading) {
+                                setRepairTypeOpenId((prev) =>
+                                  prev === item.id ? null : item.id
+                                );
+                                setRepairTypeSearchTerm("");
+                              }
+                            }}
+                            aria-expanded={repairTypeOpenId === item.id}
+                            disabled={viewMode || repairTypeOptionsLoading}
+                          >
+                            <span>
+                              {item.repairTypeName ||
+                                (repairTypeOptionsLoading
+                                  ? "Loading types..."
+                                  : "Select repair type")}
+                            </span>
+                            <span className="text-[10px] text-[var(--text-muted)]">v</span>
+                          </button>
+                          {repairTypeOpenId === item.id ? (
+                            <div className="absolute left-0 right-0 z-10 mt-2 rounded-xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
+                              <div className="p-2">
+                                <input
+                                  className="h-9 w-full rounded-lg border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                                  placeholder="Search repair types"
+                                  value={repairTypeSearchTerm}
+                                  onChange={(event) => setRepairTypeSearchTerm(event.target.value)}
+                                />
+                              </div>
+                              {repairTypeOptionsLoading ? (
+                                <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                  Loading types...
+                                </div>
+                              ) : repairTypeOptions.length === 0 ? (
+                                <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                  No repair types found.
+                                </div>
+                              ) : (
+                                repairTypeOptions.map((option) => (
+                                  <button
+                                    key={option.id}
+                                    type="button"
+                                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                      option.id === item.repairTypeId
+                                        ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
+                                        : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
+                                    }`}
+                                    onClick={() => {
+                                      updateRepairItem(item.id, {
+                                        repairTypeId: option.id,
+                                        repairTypeName: `${option.code} - ${option.name}`,
+                                      });
+                                      setRepairTypeOpenId(null);
+                                      setRepairTypeSearchTerm("");
+                                    }}
+                                  >
+                                    <span>{option.code} - {option.name}</span>
+                                    {option.id === item.repairTypeId ? (
+                                      <span className="text-[10px] text-[var(--text-muted)]">
+                                        Selected
+                                      </span>
+                                    ) : null}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                      <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        <span>Price</span>
+                        <input
+                          className="h-10 rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                          placeholder="xxxx"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="\\d*"
+                          value={item.price}
+                          onChange={(event) => {
+                            event.currentTarget.value =
+                              event.currentTarget.value.replace(/\\D/g, "");
+                            updateRepairItem(item.id, {
+                              price: event.currentTarget.value,
+                            });
+                          }}
+                          disabled={viewMode}
+                        />
+                      </label>
+                      <div className="flex items-end justify-end">
+                        {!viewMode ? (
+                          <button
+                            type="button"
+                            className="h-9 rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-[10px] uppercase tracking-[0.2em] text-rose-200 transition hover:bg-rose-500/20"
+                            onClick={() => removeRepairItem(item.id)}
+                            disabled={repairItems.length <= 1}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap items-end justify-end gap-4 text-xs text-[var(--text-muted)]">
+                  <label className="grid gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>Advance</span>
+                    <div className="relative w-32">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+                        LKR
+                      </span>
+                      <input
+                        className="h-9 w-full rounded-full border border-[var(--stroke)] bg-[var(--panel)] pl-10 pr-4 text-xs text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+                        placeholder="xxxx"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\\d*"
+                        onChange={(event) => {
+                          event.currentTarget.value = event.currentTarget.value.replace(
+                            /\\D/g,
+                            ""
+                          );
+                          setAdvanceAmount(event.currentTarget.value);
+                        }}
+                        value={advanceAmount}
+                        disabled={viewMode}
+                      />
+                    </div>
+                  </label>
+                  <div className="grid gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>Total amount</span>
+                    <span className="flex h-9 min-w-[8rem] items-center rounded-full border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--foreground)]">
+                      LKR {computedTotalAmount.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-xs text-[var(--text-muted)]">
                 Tracking token (8-12 chars) will be generated on save, stored as a
                 hash, and disabled after delivery.
@@ -1501,7 +2227,11 @@ export default function RepairsPage() {
                   type="button"
                   className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
                   onClick={() => {
-                    setIsModalOpen(false);
+                    if (showCreateForm) {
+                      setShowCreateForm(false);
+                    } else {
+                      setIsModalOpen(false);
+                    }
                     resetRepairForm();
                   }}
                 >
@@ -1540,6 +2270,31 @@ export default function RepairsPage() {
           setConfirmOpen(false);
         }}
         onConfirm={confirmCreateRepair}
+      />
+      <ConfirmDialog
+        open={validationOpen}
+        title="Missing required fields"
+        description={validationMessage || "Please complete the required fields."}
+        confirmLabel="Okay"
+        cancelLabel="Close"
+        onCancel={() => setValidationOpen(false)}
+        onConfirm={() => setValidationOpen(false)}
+      />
+      <ConfirmDialog
+        open={repairTypeDeleteOpen}
+        title={`Delete ${pendingRepairTypeDelete?.name ?? "repair type"}?`}
+        description="This will remove the repair type from the catalog."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        loading={repairTypeSaving}
+        onCancel={() => {
+          if (repairTypeSaving) {
+            return;
+          }
+          setRepairTypeDeleteOpen(false);
+          setPendingRepairTypeDelete(null);
+        }}
+        onConfirm={confirmDeleteRepairType}
       />
       <ConfirmDialog
         open={statusConfirmOpen}

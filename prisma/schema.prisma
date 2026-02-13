@@ -132,6 +132,7 @@ model Repair {
   clientId  String
   brandId   String
   intakeType RepairIntakeType
+  repairTypeId String?
   storeId   String
   totalAmount Int
   advanceAmount Int
@@ -146,14 +147,52 @@ model Repair {
 
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
   brand    Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  repairType RepairType? @relation(fields: [repairTypeId], references: [id], onDelete: SetNull)
   store    Store  @relation(fields: [storeId], references: [id], onDelete: Restrict)
   createdBy User  @relation(fields: [createdById], references: [id], onDelete: Restrict)
   smsOutbox SmsOutbox[]
   audits    RepairAudit[]
+  items     RepairItem[]
 
   @@index([storeId])
   @@index([status])
   @@index([estimatedDeliveryDate])
+  @@index([repairTypeId])
+}
+
+model RepairItem {
+  id           String   @id @default(cuid())
+  repairId     String
+  repairTypeId String
+  price        Int
+  createdAt    DateTime @default(now())
+
+  repair     Repair     @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  repairType RepairType @relation(fields: [repairTypeId], references: [id], onDelete: Restrict)
+
+  @@index([repairId])
+  @@index([repairTypeId])
+}
+
+model RepairType {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repairs   Repair[]
+  items     RepairItem[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model RepairBillSequence {
+  id         Int      @id @default(1)
+  nextNumber Int      @default(1)
+  updatedAt  DateTime @updatedAt
 }
 
 model SmsOutbox {

@@ -143,6 +143,7 @@ export async function GET(request: Request) {
           client: true,
           brand: true,
           store: true,
+          items: true,
         },
       }),
       prisma.repair.count({ where }),
@@ -177,7 +178,6 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as {
-      billNo?: unknown;
       clientId?: unknown;
       brandId?: unknown;
       intakeType?: unknown;
@@ -186,16 +186,17 @@ export async function POST(request: Request) {
       advanceAmount?: unknown;
       estimatedDeliveryDate?: unknown;
       description?: unknown;
+      items?: unknown;
+      repairTypeId?: unknown;
     };
 
-    const billNo = typeof body.billNo === "string" ? body.billNo.trim() : "";
     const clientId = typeof body.clientId === "string" ? body.clientId.trim() : "";
     const brandId = typeof body.brandId === "string" ? body.brandId.trim() : "";
     const intakeRaw = typeof body.intakeType === "string" ? body.intakeType.trim() : "";
     const intakeType = intakeTypeMap[intakeRaw as keyof typeof intakeTypeMap];
     const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
-    const totalAmount = typeof body.totalAmount === "number" ? body.totalAmount : null;
-    const advanceAmount = typeof body.advanceAmount === "number" ? body.advanceAmount : null;
+    const advanceAmount =
+      typeof body.advanceAmount === "number" ? body.advanceAmount : 0;
     const description =
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
@@ -204,28 +205,18 @@ export async function POST(request: Request) {
       typeof body.estimatedDeliveryDate === "string"
         ? body.estimatedDeliveryDate.trim()
         : "";
+    const rawItems = Array.isArray(body.items) ? body.items : null;
+    const primaryRepairTypeId =
+      typeof body.repairTypeId === "string" ? body.repairTypeId.trim() : "";
 
-    if (!billNo) {
-      return NextResponse.json(
-        fail("Bill number is required.", "VALIDATION_ERROR"),
-        { status: 400 }
-      );
-    }
     if (!clientId || !brandId || !storeId || !intakeType) {
       return NextResponse.json(
         fail("Client, brand, store, and intake type are required.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
-    if (!Number.isFinite(totalAmount) || totalAmount === null || totalAmount <= 0) {
-      return NextResponse.json(
-        fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
-        { status: 400 }
-      );
-    }
     if (
       !Number.isFinite(advanceAmount) ||
-      advanceAmount === null ||
       advanceAmount < 0
     ) {
       return NextResponse.json(
@@ -233,15 +224,57 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (advanceAmount > totalAmount) {
-      return NextResponse.json(
-        fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
-        { status: 400 }
-      );
-    }
     if (!estimatedDeliveryDate) {
       return NextResponse.json(
         fail("Estimated delivery date is required.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+    if (!rawItems || rawItems.length === 0) {
+      return NextResponse.json(
+        fail("At least one repair item is required.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+
+    const parsedItems = rawItems
+      .map((item) => {
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        const record = item as Record<string, unknown>;
+        const repairTypeId =
+          typeof record.repairTypeId === "string" ? record.repairTypeId.trim() : "";
+        const price =
+          typeof record.price === "number"
+            ? record.price
+            : typeof record.price === "string"
+              ? Number(record.price)
+              : NaN;
+        if (!repairTypeId || !Number.isFinite(price) || price <= 0) {
+          return null;
+        }
+        return { repairTypeId, price: Math.round(price) };
+      })
+      .filter((item): item is { repairTypeId: string; price: number } => Boolean(item));
+
+    if (parsedItems.length === 0) {
+      return NextResponse.json(
+        fail("Each repair item must include type and price.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+
+    const totalAmount = parsedItems.reduce((sum, item) => sum + item.price, 0);
+    if (totalAmount <= 0) {
+      return NextResponse.json(
+        fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+    if (advanceAmount > totalAmount) {
+      return NextResponse.json(
+        fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -261,15 +294,26 @@ export async function POST(request: Request) {
       )
     );
 
-    const [client, brand, store] = await Promise.all([
+    const [client, brand, store, repairTypes] = await Promise.all([
       prisma.client.findUnique({ where: { id: clientId } }),
       prisma.brand.findUnique({ where: { id: brandId } }),
       prisma.store.findUnique({ where: { id: storeId } }),
+      prisma.repairType.findMany({
+        where: { id: { in: parsedItems.map((item) => item.repairTypeId) } },
+        select: { id: true },
+      }),
     ]);
 
     if (!client || !brand || !store) {
       return NextResponse.json(
         fail("Client, brand, or store is invalid.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
+    const validTypeIds = new Set(repairTypes.map((type) => type.id));
+    if (parsedItems.some((item) => !validTypeIds.has(item.repairTypeId))) {
+      return NextResponse.json(
+        fail("Selected repair type is invalid.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -281,6 +325,17 @@ export async function POST(request: Request) {
       .digest("hex");
 
     const created = await prisma.$transaction(async (tx) => {
+      const sequence = await tx.repairBillSequence.upsert({
+        where: { id: 1 },
+        update: {},
+        create: { id: 1, nextNumber: 1 },
+      });
+      const billNo = `RB${sequence.nextNumber}`;
+      await tx.repairBillSequence.update({
+        where: { id: 1 },
+        data: { nextNumber: { increment: 1 } },
+      });
+
       const repair = await tx.repair.create({
         data: {
           billNo,
@@ -288,6 +343,7 @@ export async function POST(request: Request) {
           brandId,
           intakeType,
           storeId,
+          repairTypeId: primaryRepairTypeId || parsedItems[0]?.repairTypeId,
           totalAmount,
           advanceAmount,
           estimatedDeliveryDate: dateOnly,
@@ -295,6 +351,13 @@ export async function POST(request: Request) {
           trackingTokenHash,
           createdById: user.id,
         },
+      });
+      await tx.repairItem.createMany({
+        data: parsedItems.map((item) => ({
+          repairId: repair.id,
+          repairTypeId: item.repairTypeId,
+          price: item.price,
+        })),
       });
 
       await tx.smsOutbox.create({
@@ -356,7 +419,6 @@ export async function PATCH(request: Request) {
 
     const body = (await request.json()) as {
       id?: unknown;
-      billNo?: unknown;
       brandId?: unknown;
       intakeType?: unknown;
       storeId?: unknown;
@@ -366,16 +428,17 @@ export async function PATCH(request: Request) {
       status?: unknown;
       estimatedDeliveryDate?: unknown;
       isPostponed?: unknown;
+      items?: unknown;
+      repairTypeId?: unknown;
     };
 
     const id = typeof body.id === "string" ? body.id.trim() : "";
-    const billNo = typeof body.billNo === "string" ? body.billNo.trim() : "";
     const brandId = typeof body.brandId === "string" ? body.brandId.trim() : "";
     const intakeRaw = typeof body.intakeType === "string" ? body.intakeType.trim() : "";
     const intakeType = intakeTypeMap[intakeRaw as keyof typeof intakeTypeMap];
     const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
-    const totalAmount = typeof body.totalAmount === "number" ? body.totalAmount : null;
-    const advanceAmount = typeof body.advanceAmount === "number" ? body.advanceAmount : null;
+    const advanceAmount =
+      typeof body.advanceAmount === "number" ? body.advanceAmount : 0;
     const description =
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
@@ -386,6 +449,9 @@ export async function PATCH(request: Request) {
       typeof body.estimatedDeliveryDate === "string"
         ? body.estimatedDeliveryDate.trim()
         : "";
+    const rawItems = Array.isArray(body.items) ? body.items : null;
+    const primaryRepairTypeId =
+      typeof body.repairTypeId === "string" ? body.repairTypeId.trim() : "";
 
     if (!id) {
       return NextResponse.json(
@@ -406,15 +472,6 @@ export async function PATCH(request: Request) {
 
     const updateData: Record<string, unknown> = {};
     const audits: Array<{ eventType: string; oldValue: string | null; newValue: string | null }> = [];
-
-    if (billNo && billNo !== repair.billNo) {
-      updateData.billNo = billNo;
-      audits.push({
-        eventType: "BILL_UPDATED",
-        oldValue: repair.billNo,
-        newValue: billNo,
-      });
-    }
 
     if (brandId && brandId !== repair.brandId) {
       const brand = await prisma.brand.findUnique({ where: { id: brandId } });
@@ -457,43 +514,12 @@ export async function PATCH(request: Request) {
       });
     }
 
-    if (totalAmount !== null && Number.isFinite(totalAmount)) {
-      if (totalAmount <= 0) {
-        return NextResponse.json(
-          fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-      if (totalAmount !== repair.totalAmount) {
-        updateData.totalAmount = totalAmount;
-        audits.push({
-          eventType: "TOTAL_UPDATED",
-          oldValue: String(repair.totalAmount),
-          newValue: String(totalAmount),
-        });
-      }
-    }
-
-    if (advanceAmount !== null && Number.isFinite(advanceAmount)) {
+    if (Number.isFinite(advanceAmount)) {
       if (advanceAmount < 0) {
         return NextResponse.json(
           fail("Advance amount must be zero or more.", "VALIDATION_ERROR"),
           { status: 400 }
         );
-      }
-      if (advanceAmount > (totalAmount ?? repair.totalAmount)) {
-        return NextResponse.json(
-          fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
-      if (advanceAmount !== repair.advanceAmount) {
-        updateData.advanceAmount = advanceAmount;
-        audits.push({
-          eventType: "ADVANCE_UPDATED",
-          oldValue: String(repair.advanceAmount),
-          newValue: String(advanceAmount),
-        });
       }
     }
 
@@ -503,6 +529,97 @@ export async function PATCH(request: Request) {
         eventType: "DESCRIPTION_UPDATED",
         oldValue: repair.description ?? "",
         newValue: description,
+      });
+    }
+
+    let parsedItems: Array<{ repairTypeId: string; price: number }> | null = null;
+    if (rawItems) {
+      parsedItems = rawItems
+        .map((item) => {
+          if (!item || typeof item !== "object") {
+            return null;
+          }
+          const record = item as Record<string, unknown>;
+          const repairTypeId =
+            typeof record.repairTypeId === "string"
+              ? record.repairTypeId.trim()
+              : "";
+          const price =
+            typeof record.price === "number"
+              ? record.price
+              : typeof record.price === "string"
+                ? Number(record.price)
+                : NaN;
+          if (!repairTypeId || !Number.isFinite(price) || price <= 0) {
+            return null;
+          }
+          return { repairTypeId, price: Math.round(price) };
+        })
+        .filter(
+          (item): item is { repairTypeId: string; price: number } => Boolean(item)
+        );
+
+      if (parsedItems.length === 0) {
+        return NextResponse.json(
+          fail("Each repair item must include type and price.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+
+      const typeIds = parsedItems.map((item) => item.repairTypeId);
+      const repairTypes = await prisma.repairType.findMany({
+        where: { id: { in: typeIds } },
+        select: { id: true },
+      });
+      const validTypeIds = new Set(repairTypes.map((type) => type.id));
+      if (parsedItems.some((item) => !validTypeIds.has(item.repairTypeId))) {
+        return NextResponse.json(
+          fail("Selected repair type is invalid.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+
+      const totalAmount = parsedItems.reduce((sum, item) => sum + item.price, 0);
+      if (totalAmount <= 0) {
+        return NextResponse.json(
+          fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      if (advanceAmount > totalAmount) {
+        return NextResponse.json(
+          fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+
+      if (totalAmount !== repair.totalAmount) {
+        updateData.totalAmount = totalAmount;
+        audits.push({
+          eventType: "TOTAL_UPDATED",
+          oldValue: String(repair.totalAmount),
+          newValue: String(totalAmount),
+        });
+      }
+      if (advanceAmount !== repair.advanceAmount) {
+        updateData.advanceAmount = advanceAmount;
+        audits.push({
+          eventType: "ADVANCE_UPDATED",
+          oldValue: String(repair.advanceAmount),
+          newValue: String(advanceAmount),
+        });
+      }
+      if (primaryRepairTypeId) {
+        updateData.repairTypeId = primaryRepairTypeId;
+      } else if (parsedItems[0]?.repairTypeId) {
+        updateData.repairTypeId = parsedItems[0].repairTypeId;
+      }
+    } else if (advanceAmount !== repair.advanceAmount) {
+      updateData.advanceAmount = advanceAmount;
+      audits.push({
+        eventType: "ADVANCE_UPDATED",
+        oldValue: String(repair.advanceAmount),
+        newValue: String(advanceAmount),
       });
     }
 
@@ -569,6 +686,22 @@ export async function PATCH(request: Request) {
         where: { id },
         data: updateData,
       });
+
+      if (parsedItems) {
+        await tx.repairItem.deleteMany({ where: { repairId: id } });
+        await tx.repairItem.createMany({
+          data: parsedItems.map((item) => ({
+            repairId: id,
+            repairTypeId: item.repairTypeId,
+            price: item.price,
+          })),
+        });
+        audits.push({
+          eventType: "ITEMS_UPDATED",
+          oldValue: null,
+          newValue: JSON.stringify(parsedItems),
+        });
+      }
 
       for (const audit of audits) {
         await tx.repairAudit.create({
