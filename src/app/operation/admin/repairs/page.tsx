@@ -2330,6 +2330,140 @@ export default function RepairsPage() {
               ) : null}
               {!viewMode && !editMode ? (
                 <>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>
+                      Intake type <span className="text-rose-400">*</span>
+                    </span>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
+                        onClick={() => setIntakeOpen((prev) => !prev)}
+                        aria-expanded={intakeOpen}
+                      >
+                        <span>{intakeType}</span>
+                        <span className="text-xs text-[var(--text-muted)]">v</span>
+                      </button>
+                      {intakeOpen ? (
+                        <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
+                          {["Walk-in", "Courier"].map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                intakeType === option
+                                  ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
+                                  : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
+                              }`}
+                              onClick={() => {
+                                setIntakeType(option);
+                                setIntakeOpen(false);
+                              }}
+                            >
+                              <span>{option}</span>
+                              {intakeType === option ? (
+                                <span className="text-xs text-[var(--text-muted)]">
+                                  Selected
+                                </span>
+                              ) : null}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>
+                      Store <span className="text-rose-400">*</span>
+                    </span>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
+                        onClick={() => setStoreOpen((prev) => !prev)}
+                        aria-expanded={storeOpen}
+                      >
+                        <span>{selectedStore?.name ?? "Select store"}</span>
+                        <span className="text-xs text-[var(--text-muted)]">v</span>
+                      </button>
+                      {storeOpen ? (
+                        <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
+                          <div className="p-2">
+                            <input
+                              className="h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                              placeholder="Search stores"
+                              value={storeSearch}
+                              onChange={(event) => setStoreSearch(event.target.value)}
+                            />
+                          </div>
+                          <div className="max-h-56 overflow-auto">
+                            {storeLoading ? (
+                              <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                Loading stores...
+                              </div>
+                            ) : storeError ? (
+                              <div className="px-3 py-2 text-xs text-rose-500">
+                                {storeError}
+                              </div>
+                            ) : stores.length === 0 ? (
+                              <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
+                                No stores found.
+                              </div>
+                            ) : (
+                              stores.map((store) => (
+                                <button
+                                  key={store.id}
+                                  type="button"
+                                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                    selectedStore?.id === store.id
+                                      ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
+                                      : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
+                                  }`}
+                                  onClick={() => {
+                                    setSelectedStore(store);
+                                    setStoreOpen(false);
+                                  }}
+                                >
+                                  <span>{store.name}</span>
+                                  {selectedStore?.id === store.id ? (
+                                    <span className="text-xs text-[var(--text-muted)]">
+                                      Selected
+                                    </span>
+                                  ) : null}
+                                </button>
+                              ))
+                            )}
+                            {storeHasMore && !storeLoading && !storeError && !storeSearch.trim() ? (
+                              <button
+                                type="button"
+                                className="mt-2 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 py-2 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                                onClick={() => setStorePage((prev) => prev + 1)}
+                                disabled={storeLoadingMore}
+                              >
+                                {storeLoadingMore ? "Loading..." : "Load more"}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>
+                      Estimated delivery date <span className="text-rose-400">*</span>
+                    </span>
+                    <DeliveryDatePicker
+                      value={selectedDate}
+                      onChange={setSelectedDate}
+                      countsByDate={deliveryCounts}
+                      onMonthChange={handleCalendarMonthChange}
+                      loading={calendarLoading}
+                    />
+                  </label>
+                </div>
                 {calendarError ? (
                 <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
                   {calendarError}
