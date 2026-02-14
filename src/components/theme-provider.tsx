@@ -18,33 +18,28 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "dark";
+    }
+    const stored = window.localStorage.getItem("dob-theme");
+    return stored === "light" || stored === "dark" ? stored : "dark";
+  });
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("dob-theme") as Theme | null;
-    if (stored === "light" || stored === "dark") {
-      setThemeState(stored);
-      applyTheme(stored);
-      return;
-    }
-    const initial = "dark";
-    setThemeState(initial);
-    applyTheme(initial);
-  }, []);
+    applyTheme(theme);
+    window.localStorage.setItem("dob-theme", theme);
+  }, [theme]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
       setTheme: (nextTheme: Theme) => {
         setThemeState(nextTheme);
-        applyTheme(nextTheme);
-        window.localStorage.setItem("dob-theme", nextTheme);
       },
       toggleTheme: () => {
         const nextTheme = theme === "dark" ? "light" : "dark";
         setThemeState(nextTheme);
-        applyTheme(nextTheme);
-        window.localStorage.setItem("dob-theme", nextTheme);
       },
     }),
     [theme]

@@ -1,6 +1,7 @@
 export type LoginRequestDTO = {
   identifier: string;
   password: string;
+  portal?: "OPERATION" | "ACCOUNTING";
 };
 
 export type LoginResponseDTO = {

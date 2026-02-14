@@ -1,9 +1,11 @@
-const { PrismaClient } = require("@prisma/client");
-const bcrypt = require("bcryptjs");
-
-const prisma = new PrismaClient();
-
 async function main() {
+  const [{ PrismaClient }, bcryptModule] = await Promise.all([
+    import("@prisma/client"),
+    import("bcryptjs"),
+  ]);
+  const bcrypt = bcryptModule.default ?? bcryptModule;
+  const prisma = new PrismaClient();
+
   const username = "SuperAdmin@DOB";
   const password = "DOB@2026";
   const passwordHash = await bcrypt.hash(password, 12);
@@ -66,13 +68,12 @@ async function main() {
       create: client,
     });
   }
+
+  await prisma.$disconnect();
 }
 
 main()
   .catch((error) => {
     console.error(error);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });

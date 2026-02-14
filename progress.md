@@ -462,3 +462,21 @@
 
 ## 2026-02-13 17:11
 - Added a short success banner after updating a repair, then auto-returned to the main repairs screen.
+
+## 2026-02-14 02:46
+- Fixed auth portal resolution for shared `/api/auth/*` routes by adding `resolvePortal()` (explicit portal/query/header/referer/path fallback) and using it in login + session APIs.
+- Extended login DTO + form submission to include portal context (`portal`), and wired operation login to send `portal=OPERATION`.
+- Resolved lint-blocking errors:
+  - Escaped unescaped apostrophes in operational dashboard JSX.
+  - Refactored `ThemeProvider` to avoid `setState` in `useEffect` (derive initial theme in state initializer + sync effect).
+  - Refactored `DeliveryDatePicker` to avoid `setState` in `useEffect` (sync selected month/year on open interaction).
+  - Updated Prisma seed script to use dynamic imports instead of `require()` to satisfy lint rules.
+- Ran `npm run lint`: now passes with 0 errors (warnings only).
+- Ran `npm run build`: compile reached a pre-existing TypeScript error in `src/app/api/repairs/route.ts` (status filter typing), not introduced by these changes.
+
+## 2026-02-14 10:59
+- Repairs edit/reschedule flow now tracks original snapshot values and disables `Update Repair` until actual changes are made.
+- Added edit guard to block PATCH submission when no changes are detected.
+- Tightened repair item validation so blank repair-type rows are not allowed (rows must have a selected type or be removed).
+- Applied the same validation path to create/update form checks for consistent behavior.
+- Verified with ESLint: no new errors introduced by this patch.

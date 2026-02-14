@@ -81,6 +81,24 @@ type RepairLineItem = {
   price: string;
 };
 
+type EditSnapshot = {
+  selectedDate: string;
+  advanceAmount: string;
+  description: string;
+  itemsSignature: string;
+};
+
+function normalizeRepairItems(items: RepairLineItem[]) {
+  return items.map((item) => ({
+    repairTypeId: item.repairTypeId.trim(),
+    price: Number(item.price || 0),
+  }));
+}
+
+function createItemsSignature(items: RepairLineItem[]) {
+  return JSON.stringify(normalizeRepairItems(items));
+}
+
 function formatMobile(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.startsWith("94") && digits.length === 11) {
@@ -179,6 +197,7 @@ export default function RepairsPage() {
   const [repairItems, setRepairItems] = useState<RepairLineItem[]>([
     { id: "item-1", repairTypeId: "", repairTypeName: "", price: "" },
   ]);
+  const [editSnapshot, setEditSnapshot] = useState<EditSnapshot | null>(null);
 
   const totalRepairPages = useMemo(() => {
     return Math.max(1, Math.ceil(repairsTotal / repairsPageSize));
@@ -197,6 +216,26 @@ export default function RepairsPage() {
       return sum + value;
     }, 0);
   }, [repairItems]);
+
+  const isEditUnchanged = useMemo(() => {
+    if (!editMode || !editSnapshot) {
+      return false;
+    }
+
+    const current = {
+      selectedDate: selectedDate.trim(),
+      advanceAmount: String(Number(advanceAmount || 0)),
+      description: description.trim(),
+      itemsSignature: createItemsSignature(repairItems),
+    };
+
+    return (
+      current.selectedDate === editSnapshot.selectedDate &&
+      current.advanceAmount === editSnapshot.advanceAmount &&
+      current.description === editSnapshot.description &&
+      current.itemsSignature === editSnapshot.itemsSignature
+    );
+  }, [editMode, editSnapshot, selectedDate, advanceAmount, description, repairItems]);
 
   const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
     setCalendarLoading(true);
@@ -757,6 +796,7 @@ export default function RepairsPage() {
     setRepairItems([{ id: "item-1", repairTypeId: "", repairTypeName: "", price: "" }]);
     setRepairTypeOpenId(null);
     setRepairTypeSearchTerm("");
+    setEditSnapshot(null);
   }
 
   function resetRepairTypeForm() {
@@ -821,6 +861,10 @@ export default function RepairsPage() {
     const hasSelectedItem = repairItems.some((item) => item.repairTypeId);
     if (!hasSelectedItem) {
       return "At least one repair item with a price is required.";
+    }
+    const hasBlankTypeItem = repairItems.some((item) => !item.repairTypeId.trim());
+    if (hasBlankTypeItem) {
+      return "Each repair row must have a repair type selected or be removed.";
     }
     const hasIncompleteItem = repairItems.some(
       (item) =>
@@ -982,6 +1026,11 @@ export default function RepairsPage() {
 
   async function handleUpdateRepair() {
     if (!editingRepairId || !selectedBrand || !selectedStore) {
+      return;
+    }
+    if (isEditUnchanged) {
+      setValidationMessage("No changes detected to update.");
+      setValidationOpen(true);
       return;
     }
     const validation = validateRepairForm();
@@ -1507,9 +1556,31 @@ export default function RepairsPage() {
                     <button
                       className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
                       onClick={() => {
-                      setShowCreateForm(true);
-                      setEditMode(true);
-                      setViewMode(false);
+                        const mappedItems =
+                          repair.items && repair.items.length > 0
+                            ? repair.items.map((item, index) => ({
+                                id: item.id || `item-${index + 1}`,
+                                repairTypeId: item.repairTypeId,
+                                repairTypeName: item.repairType
+                                  ? `${item.repairType.code} - ${item.repairType.name}`
+                                  : "",
+                                price: String(item.price),
+                              }))
+                            : [
+                                {
+                                  id: "item-1",
+                                  repairTypeId: repair.repairTypeId ?? "",
+                                  repairTypeName: "",
+                                  price: String(repair.totalAmount),
+                                },
+                              ];
+                        const dateValue = new Date(repair.estimatedDeliveryDate)
+                          .toISOString()
+                          .slice(0, 10);
+
+                        setShowCreateForm(true);
+                        setEditMode(true);
+                        setViewMode(false);
                         setEditingRepairId(repair.id);
                         setBillNo(repair.billNo);
                         setSelectedClient({
@@ -1530,33 +1601,16 @@ export default function RepairsPage() {
                         );
                         setTotalAmount(String(repair.totalAmount));
                         setAdvanceAmount(String(repair.advanceAmount));
-                        if (repair.items && repair.items.length > 0) {
-                          setRepairItems(
-                            repair.items.map((item, index) => ({
-                              id: item.id || `item-${index + 1}`,
-                              repairTypeId: item.repairTypeId,
-                              repairTypeName: item.repairType
-                                ? `${item.repairType.code} - ${item.repairType.name}`
-                                : "",
-                              price: String(item.price),
-                            }))
-                          );
-                        } else {
-                          setRepairItems([
-                            {
-                              id: "item-1",
-                              repairTypeId: repair.repairTypeId ?? "",
-                              repairTypeName: "",
-                              price: String(repair.totalAmount),
-                            },
-                          ]);
-                        }
-                        const dateValue = new Date(repair.estimatedDeliveryDate)
-                          .toISOString()
-                          .slice(0, 10);
+                        setRepairItems(mappedItems);
                         setSelectedDate(dateValue);
                         setInitialDeliveryDate(dateValue);
                         setDescription(repair.description ?? "");
+                        setEditSnapshot({
+                          selectedDate: dateValue,
+                          advanceAmount: String(Number(repair.advanceAmount || 0)),
+                          description: (repair.description ?? "").trim(),
+                          itemsSignature: createItemsSignature(mappedItems),
+                        });
                         setIsModalOpen(false);
                       }}
                     >
@@ -2483,8 +2537,9 @@ export default function RepairsPage() {
                 {!viewMode ? (
                   <button
                     type="button"
-                    className="h-10 rounded-full bg-[var(--accent)] px-6 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90"
+                    className="h-10 rounded-full bg-[var(--accent)] px-6 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                     onClick={editMode ? handleUpdateRepair : handleCreateRepair}
+                    disabled={creating || (editMode ? isEditUnchanged : false)}
                   >
                     {editMode ? "Update Repair" : "Save Repair"}
                   </button>

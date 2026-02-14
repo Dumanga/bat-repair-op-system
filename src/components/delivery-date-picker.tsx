@@ -60,17 +60,6 @@ export function DeliveryDatePicker({
   const [year, setYear] = useState(initial.year);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const parsed = parseDate(value);
-    if (parsed) {
-      setMonth(parsed.month);
-      setYear(parsed.year);
-    }
-  }, [open, value]);
-
-  useEffect(() => {
     if (!open || !onMonthChange) {
       return;
     }
@@ -82,12 +71,12 @@ export function DeliveryDatePicker({
     onMonthChange(year, month);
   }, [open, month, year, onMonthChange]);
 
-  const { daysInMonth, startOffset, days } = useMemo(() => {
+  const { startOffset, days } = useMemo(() => {
     const first = new Date(year, month - 1, 1);
     const totalDays = new Date(year, month, 0).getDate();
     const offset = first.getDay();
     const list = Array.from({ length: totalDays }, (_, index) => index + 1);
-    return { daysInMonth: totalDays, startOffset: offset, days: list };
+    return { startOffset: offset, days: list };
   }, [month, year]);
 
   return (
@@ -97,6 +86,11 @@ export function DeliveryDatePicker({
         className="flex h-11 w-full items-center justify-between rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
         onClick={() => {
           if (!disabled && !loading) {
+            const parsed = parseDate(value);
+            if (parsed) {
+              setMonth(parsed.month);
+              setYear(parsed.year);
+            }
             setOpen(true);
           }
         }}

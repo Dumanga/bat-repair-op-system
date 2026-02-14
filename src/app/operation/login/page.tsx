@@ -94,6 +94,7 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="mt-8 grid gap-5">
+              <input type="hidden" name="portal" value="OPERATION" />
               <label className="grid gap-2 text-sm text-white/70">
                 Email or username
                 <input

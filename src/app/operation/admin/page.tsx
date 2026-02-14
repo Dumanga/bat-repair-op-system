@@ -70,7 +70,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                Today's Deliveries
+                Today&apos;s Deliveries
               </p>
               <h2 className="mt-2 text-xl font-semibold">Schedule overview</h2>
             </div>
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
             <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
               Active Workshop Queue
             </p>
-            <h2 className="mt-2 text-xl font-semibold">What's on the bench</h2>
+            <h2 className="mt-2 text-xl font-semibold">What&apos;s on the bench</h2>
           </div>
           <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <span>Sort:</span>

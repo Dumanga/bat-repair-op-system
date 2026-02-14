@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
-import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
+import { getSessionCookieName, hashSessionToken, resolvePortal } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
-    const portal = getPortalFromPath(new URL(request.url).pathname);
+    const portal = resolvePortal(request);
     const token = cookieStore.get(getSessionCookieName(portal))?.value;
 
     if (!token) {
