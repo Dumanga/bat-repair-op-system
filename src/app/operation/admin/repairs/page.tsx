@@ -53,6 +53,7 @@ type ClientOption = {
   id: string;
   name: string;
   mobile: string;
+  tier?: "BRONZE" | "SILVER" | "GOLD";
 };
 
 type BrandOption = {
@@ -124,6 +125,13 @@ export default function RepairsPage() {
   const [clientLoadingMore, setClientLoadingMore] = useState(false);
   const [selectedClient, setSelectedClient] = useState<ClientOption | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
+  const [clientReloadToken, setClientReloadToken] = useState(0);
+  const [clientCreateOpen, setClientCreateOpen] = useState(false);
+  const [clientCreateName, setClientCreateName] = useState("");
+  const [clientCreateMobile, setClientCreateMobile] = useState("");
+  const [clientCreateTier, setClientCreateTier] = useState<"BRONZE" | "SILVER" | "GOLD">("BRONZE");
+  const [clientCreateSaving, setClientCreateSaving] = useState(false);
+  const [clientCreateError, setClientCreateError] = useState<string | null>(null);
   const [billNo, setBillNo] = useState("");
   const [billLoading, setBillLoading] = useState(false);
   const [brandOpen, setBrandOpen] = useState(false);
@@ -359,7 +367,8 @@ export default function RepairsPage() {
       statusConfirmOpen ||
       deleteConfirmOpen ||
       repairTypeDeleteOpen ||
-      validationOpen;
+      validationOpen ||
+      clientCreateOpen;
     if (shouldLock) {
       document.body.style.overflow = "hidden";
       return () => {
@@ -368,7 +377,7 @@ export default function RepairsPage() {
     }
     document.body.style.overflow = "";
     return undefined;
-  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen, repairTypeDeleteOpen, validationOpen]);
+  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen, repairTypeDeleteOpen, validationOpen, clientCreateOpen]);
 
   useEffect(() => {
     if (!showCreateForm || editMode) {
@@ -583,7 +592,84 @@ export default function RepairsPage() {
       }
     }, 250);
     return () => clearTimeout(timeout);
-  }, [clientOpen, clientPage, clientSearch]);
+  }, [clientOpen, clientPage, clientSearch, clientReloadToken]);
+
+  function resetClientCreateForm() {
+    setClientCreateName("");
+    setClientCreateMobile("");
+    setClientCreateTier("BRONZE");
+    setClientCreateError(null);
+  }
+
+  async function handleCreateClientFromRepair() {
+    const trimmedName = clientCreateName.trim();
+    const mobileDigits = clientCreateMobile.replace(/\D/g, "").slice(0, 9);
+
+    if (!trimmedName) {
+      setClientCreateError("Customer name is required.");
+      return;
+    }
+
+    if (mobileDigits.length !== 9) {
+      setClientCreateError("Mobile number must be 9 digits.");
+      return;
+    }
+
+    setClientCreateSaving(true);
+    setClientCreateError(null);
+    try {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          mobile: `94${mobileDigits}`,
+          tier: clientCreateTier,
+        }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+        data: ClientOption | null;
+      };
+
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message || "Unable to create customer.");
+      }
+
+      try {
+        const refreshParams = new URLSearchParams({
+          page: "1",
+          pageSize: "50",
+        });
+        const refreshResponse = await fetch(`/api/clients?${refreshParams.toString()}`);
+        const refreshPayload = (await refreshResponse.json()) as {
+          success: boolean;
+          data: { items: ClientOption[]; total: number; pageSize: number } | null;
+        };
+        if (refreshResponse.ok && refreshPayload.success && refreshPayload.data) {
+          setClients(refreshPayload.data.items);
+          setClientHasMore(refreshPayload.data.pageSize < refreshPayload.data.total);
+        }
+      } catch {
+        // Keep flow unblocked; created client is still selected below.
+      }
+
+      setSelectedClient(payload.data);
+      setClientOpen(false);
+      setClientSearch("");
+      setClientPage(1);
+      setClientReloadToken((value) => value + 1);
+      setClientCreateOpen(false);
+      resetClientCreateForm();
+    } catch (err) {
+      setClientCreateError(
+        err instanceof Error ? err.message : "Unable to create customer."
+      );
+    } finally {
+      setClientCreateSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!brandOpen) {
@@ -2181,13 +2267,25 @@ export default function RepairsPage() {
                     </button>
                     {clientOpen ? (
                       <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
-                        <div className="p-2">
+                        <div className="grid grid-cols-4 gap-2 p-2">
                           <input
-                            className="h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                            className="col-span-3 h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
                             placeholder="Search name or mobile"
                             value={clientSearch}
                             onChange={(event) => setClientSearch(event.target.value)}
                           />
+                          <button
+                            type="button"
+                            className="h-10 rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] text-base font-semibold text-[var(--foreground)] transition hover:border-[var(--accent)]"
+                            onClick={() => {
+                              setClientCreateOpen(true);
+                              setClientOpen(false);
+                              setClientCreateError(null);
+                            }}
+                            title="Add customer"
+                          >
+                            +
+                          </button>
                         </div>
                         <div className="max-h-56 overflow-auto">
                           {clientLoading ? (
@@ -2703,6 +2801,108 @@ export default function RepairsPage() {
         }}
         onConfirm={confirmCreateRepair}
       />
+      {clientCreateOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-xl">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                New Customer
+              </p>
+              <h3 className="mt-2 text-xl font-semibold">Create customer</h3>
+              <p className="mt-2 text-sm text-[var(--text-muted)]">
+                Add a customer and continue creating this repair.
+              </p>
+            </div>
+            <div className="mt-6 grid gap-4">
+              {clientCreateError ? (
+                <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
+                  {clientCreateError}
+                </div>
+              ) : null}
+              <label className="grid gap-2 text-sm text-[var(--text-muted)]">
+                Customer name
+                <input
+                  className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                  placeholder="Enter full name"
+                  type="text"
+                  value={clientCreateName}
+                  onChange={(event) => {
+                    setClientCreateName(event.target.value);
+                    if (clientCreateError) {
+                      setClientCreateError(null);
+                    }
+                  }}
+                  disabled={clientCreateSaving}
+                />
+              </label>
+              <label className="grid gap-2 text-sm text-[var(--text-muted)]">
+                Mobile number
+                <div className="flex h-11 items-center rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)]">
+                  <span className="text-xs text-[var(--text-muted)]">+94</span>
+                  <input
+                    className="ml-2 w-full bg-transparent text-sm text-[var(--foreground)] outline-none"
+                    placeholder="Enter 9 digits"
+                    type="tel"
+                    inputMode="numeric"
+                    value={clientCreateMobile}
+                    onChange={(event) => {
+                      const digits = event.target.value.replace(/\D/g, "");
+                      setClientCreateMobile(digits.slice(0, 9));
+                      if (clientCreateError) {
+                        setClientCreateError(null);
+                      }
+                    }}
+                    disabled={clientCreateSaving}
+                  />
+                </div>
+              </label>
+              <div className="grid gap-2 text-sm text-[var(--text-muted)]">
+                <span>Loyalty tier</span>
+                <select
+                  className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                  value={clientCreateTier}
+                  onChange={(event) =>
+                    setClientCreateTier(event.target.value as "BRONZE" | "SILVER" | "GOLD")
+                  }
+                  disabled={clientCreateSaving}
+                >
+                  <option value="BRONZE">Bronze</option>
+                  <option value="SILVER">Silver</option>
+                  <option value="GOLD">Gold</option>
+                </select>
+              </div>
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                  onClick={() => {
+                    if (clientCreateSaving) {
+                      return;
+                    }
+                    setClientCreateOpen(false);
+                    resetClientCreateForm();
+                  }}
+                  disabled={clientCreateSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+                  onClick={handleCreateClientFromRepair}
+                  disabled={
+                    clientCreateSaving ||
+                    !clientCreateName.trim() ||
+                    clientCreateMobile.replace(/\D/g, "").length !== 9
+                  }
+                >
+                  {clientCreateSaving ? "Saving..." : "Save Customer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <ConfirmDialog
         open={validationOpen}
         title="Missing required fields"
