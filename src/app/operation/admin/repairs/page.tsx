@@ -143,6 +143,11 @@ export default function RepairsPage() {
   const [brandLoadingMore, setBrandLoadingMore] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<BrandOption | null>(null);
   const [brandError, setBrandError] = useState<string | null>(null);
+  const [brandReloadToken, setBrandReloadToken] = useState(0);
+  const [brandCreateOpen, setBrandCreateOpen] = useState(false);
+  const [brandCreateName, setBrandCreateName] = useState("");
+  const [brandCreateSaving, setBrandCreateSaving] = useState(false);
+  const [brandCreateError, setBrandCreateError] = useState<string | null>(null);
   const [storeOpen, setStoreOpen] = useState(false);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [storeSearch, setStoreSearch] = useState("");
@@ -368,7 +373,8 @@ export default function RepairsPage() {
       deleteConfirmOpen ||
       repairTypeDeleteOpen ||
       validationOpen ||
-      clientCreateOpen;
+      clientCreateOpen ||
+      brandCreateOpen;
     if (shouldLock) {
       document.body.style.overflow = "hidden";
       return () => {
@@ -377,7 +383,7 @@ export default function RepairsPage() {
     }
     document.body.style.overflow = "";
     return undefined;
-  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen, repairTypeDeleteOpen, validationOpen, clientCreateOpen]);
+  }, [isModalOpen, confirmOpen, statusConfirmOpen, deleteConfirmOpen, repairTypeDeleteOpen, validationOpen, clientCreateOpen, brandCreateOpen]);
 
   useEffect(() => {
     if (!showCreateForm || editMode) {
@@ -671,6 +677,71 @@ export default function RepairsPage() {
     }
   }
 
+  function resetBrandCreateForm() {
+    setBrandCreateName("");
+    setBrandCreateError(null);
+  }
+
+  async function handleCreateBrandFromRepair() {
+    const trimmedName = brandCreateName.trim();
+
+    if (!trimmedName) {
+      setBrandCreateError("Brand name is required.");
+      return;
+    }
+
+    setBrandCreateSaving(true);
+    setBrandCreateError(null);
+    try {
+      const response = await fetch("/api/brands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName }),
+      });
+      const payload = (await response.json()) as {
+        success: boolean;
+        message: string;
+        data: BrandOption | null;
+      };
+
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message || "Unable to create brand.");
+      }
+
+      try {
+        const refreshParams = new URLSearchParams({
+          page: "1",
+          pageSize: "50",
+        });
+        const refreshResponse = await fetch(`/api/brands?${refreshParams.toString()}`);
+        const refreshPayload = (await refreshResponse.json()) as {
+          success: boolean;
+          data: { items: BrandOption[]; total: number; pageSize: number } | null;
+        };
+        if (refreshResponse.ok && refreshPayload.success && refreshPayload.data) {
+          setBrands(refreshPayload.data.items);
+          setBrandHasMore(refreshPayload.data.pageSize < refreshPayload.data.total);
+        }
+      } catch {
+        // Keep flow unblocked; created brand is still selected below.
+      }
+
+      setSelectedBrand(payload.data);
+      setBrandOpen(false);
+      setBrandSearch("");
+      setBrandPage(1);
+      setBrandReloadToken((value) => value + 1);
+      setBrandCreateOpen(false);
+      resetBrandCreateForm();
+    } catch (err) {
+      setBrandCreateError(
+        err instanceof Error ? err.message : "Unable to create brand."
+      );
+    } finally {
+      setBrandCreateSaving(false);
+    }
+  }
+
   useEffect(() => {
     if (!brandOpen) {
       return;
@@ -762,7 +833,7 @@ export default function RepairsPage() {
       }
     }, 250);
     return () => clearTimeout(timeout);
-  }, [brandOpen, brandPage, brandSearch]);
+  }, [brandOpen, brandPage, brandSearch, brandReloadToken]);
 
   useEffect(() => {
     if (!storeOpen) {
@@ -865,6 +936,9 @@ export default function RepairsPage() {
     setSelectedBrand(null);
     setBrandSearch("");
     setBrandOpen(false);
+    setBrandCreateOpen(false);
+    setBrandCreateName("");
+    setBrandCreateError(null);
     setIntakeType("Walk-in");
     setIntakeOpen(false);
     setSelectedStore(null);
@@ -2362,13 +2436,25 @@ export default function RepairsPage() {
                     </button>
                     {brandOpen ? (
                       <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
-                        <div className="p-2">
+                        <div className="grid grid-cols-4 gap-2 p-2">
                           <input
-                            className="h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                            className="col-span-3 h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
                             placeholder="Search brands"
                             value={brandSearch}
                             onChange={(event) => setBrandSearch(event.target.value)}
                           />
+                          <button
+                            type="button"
+                            className="h-10 rounded-xl border border-[var(--stroke)] bg-[var(--panel-muted)] text-base font-semibold text-[var(--foreground)] transition hover:border-[var(--accent)]"
+                            onClick={() => {
+                              setBrandCreateOpen(true);
+                              setBrandOpen(false);
+                              setBrandCreateError(null);
+                            }}
+                            title="Add brand"
+                          >
+                            +
+                          </button>
                         </div>
                         <div className="max-h-56 overflow-auto">
                           {brandLoading ? (
@@ -2897,6 +2983,68 @@ export default function RepairsPage() {
                   }
                 >
                   {clientCreateSaving ? "Saving..." : "Save Customer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {brandCreateOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-xl">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                New Brand
+              </p>
+              <h3 className="mt-2 text-xl font-semibold">Create bat brand</h3>
+              <p className="mt-2 text-sm text-[var(--text-muted)]">
+                Add a brand and continue creating this repair.
+              </p>
+            </div>
+            <div className="mt-6 grid gap-4">
+              {brandCreateError ? (
+                <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
+                  {brandCreateError}
+                </div>
+              ) : null}
+              <label className="grid gap-2 text-sm text-[var(--text-muted)]">
+                Brand name
+                <input
+                  className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                  placeholder="Enter bat brand"
+                  type="text"
+                  value={brandCreateName}
+                  onChange={(event) => {
+                    setBrandCreateName(event.target.value);
+                    if (brandCreateError) {
+                      setBrandCreateError(null);
+                    }
+                  }}
+                  disabled={brandCreateSaving}
+                />
+              </label>
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                  onClick={() => {
+                    if (brandCreateSaving) {
+                      return;
+                    }
+                    setBrandCreateOpen(false);
+                    resetBrandCreateForm();
+                  }}
+                  disabled={brandCreateSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+                  onClick={handleCreateBrandFromRepair}
+                  disabled={brandCreateSaving || !brandCreateName.trim()}
+                >
+                  {brandCreateSaving ? "Saving..." : "Save Brand"}
                 </button>
               </div>
             </div>
