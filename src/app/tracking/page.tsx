@@ -402,7 +402,18 @@ export default function TrackingPage() {
                     LKR {data.advanceAmount.toLocaleString()}
                   </p>
                   <p className="mt-1 text-xs text-white/50">
-                    Balance due on pickup.
+                    Amount paid as advance.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:col-span-2">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+                    Balance to be paid
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    LKR {(data.totalAmount - data.advanceAmount).toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs text-white/50">
+                    Remaining amount to settle.
                   </p>
                 </div>
               </div>
