@@ -1,4 +1,176 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+type TrackingItem = {
+  id: string;
+  price: number;
+  repairType: {
+    id: string;
+    name: string;
+    code: string;
+  };
+};
+
+type TrackingData = {
+  id: string;
+  billNo: string;
+  status: "PENDING" | "PROCESSING" | "REPAIR_COMPLETED" | "DELIVERED";
+  intakeType: "WALK_IN" | "COURIER";
+  estimatedDeliveryDate: string;
+  totalAmount: number;
+  advanceAmount: number;
+  description: string | null;
+  client: {
+    name: string;
+    mobile: string;
+  };
+  brand: {
+    name: string;
+  };
+  store: {
+    name: string;
+  };
+  items: TrackingItem[];
+};
+
+const statusLabelMap: Record<TrackingData["status"], string> = {
+  PENDING: "Pending",
+  PROCESSING: "Processing",
+  REPAIR_COMPLETED: "Repair Completed",
+  DELIVERED: "Delivered",
+};
+
+function formatMobile(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("94") && digits.length === 11) {
+    return `0${digits.slice(2)}`;
+  }
+  return value;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+}
+
 export default function TrackingPage() {
+  const searchParams = useSearchParams();
+  const token = (searchParams.get("token") ?? "").trim();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<TrackingData | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    async function loadTracking() {
+      if (!token) {
+        if (active) {
+          setError("You do not have access or invalid tracking id.");
+          setData(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/tracking?token=${encodeURIComponent(token)}`,
+          { signal: controller.signal }
+        );
+        const payload = (await response.json()) as {
+          success: boolean;
+          message: string;
+          data: TrackingData | null;
+        };
+
+        if (!response.ok || !payload.success || !payload.data) {
+          throw new Error(
+            payload.message || "Unable to fetch tracking details."
+          );
+        }
+
+        if (active) {
+          setData(payload.data);
+          setError(null);
+        }
+      } catch (err) {
+        if (!active || controller.signal.aborted) {
+          return;
+        }
+        setData(null);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to fetch tracking details."
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadTracking();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [token]);
+
+  const statusLabel = useMemo(() => {
+    if (!data) {
+      return "-";
+    }
+    return statusLabelMap[data.status] ?? data.status;
+  }, [data]);
+
+  if (loading) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] text-white">
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-16">
+          <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-8 py-10 backdrop-blur-xl">
+            <span className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-emerald-400" />
+            <p className="text-sm text-white/70">Loading tracking details...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!data || error) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] text-white">
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-4xl items-center justify-center px-6 py-16">
+          <div className="w-full rounded-3xl border border-rose-400/30 bg-rose-500/10 p-8 text-center backdrop-blur-xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-rose-200/80">
+              Tracking Error
+            </p>
+            <h1 className="mt-3 text-2xl font-semibold">
+              You do not have access or invalid tracking id.
+            </h1>
+            <p className="mt-3 text-sm text-rose-100/80">
+              {error ?? "Unable to fetch tracking details."}
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] text-white">
       <div className="pointer-events-none absolute inset-0">
@@ -25,8 +197,7 @@ export default function TrackingPage() {
               Track your bat repair in real time.
             </h1>
             <p className="max-w-xl text-base text-white/70 sm:text-lg">
-              Enter your tracking token to see the latest status, expected
-              delivery date, and SMS updates from the workshop.
+              View live status, estimated completion, and repair details.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -34,7 +205,7 @@ export default function TrackingPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                   Status
                 </p>
-                <p className="mt-2 text-xl font-semibold">Processing</p>
+                <p className="mt-2 text-xl font-semibold">{statusLabel}</p>
                 <p className="mt-1 text-xs text-white/50">
                   Current stage of the repair.
                 </p>
@@ -43,7 +214,9 @@ export default function TrackingPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                   ETA
                 </p>
-                <p className="mt-2 text-xl font-semibold">Feb 20, 2026</p>
+                <p className="mt-2 text-xl font-semibold">
+                  {formatDate(data.estimatedDeliveryDate)}
+                </p>
                 <p className="mt-1 text-xs text-white/50">
                   Estimated delivery date.
                 </p>
@@ -67,31 +240,63 @@ export default function TrackingPage() {
             <div className="mt-8 grid gap-4">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Bat
+                  Bat brand
                 </p>
-                <p className="mt-2 text-lg font-semibold">Kookaburra Beast</p>
-                <p className="mt-1 text-xs text-white/50">Grade A English Willow</p>
+                <p className="mt-2 text-lg font-semibold">{data.brand.name}</p>
+                <p className="mt-1 text-xs text-white/50">
+                  Intake: {data.intakeType === "COURIER" ? "Courier" : "Walk-in"}
+                </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                   Client
                 </p>
-                <p className="mt-2 text-lg font-semibold">Nimal Perera</p>
-                <p className="mt-1 text-xs text-white/50">071 880 8854</p>
+                <p className="mt-2 text-lg font-semibold">{data.client.name}</p>
+                <p className="mt-1 text-xs text-white/50">
+                  {formatMobile(data.client.mobile)}
+                </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                   Bill number
                 </p>
-                <p className="mt-2 text-lg font-semibold">B-3094</p>
-                <p className="mt-1 text-xs text-white/50">Issued at Colombo Workshop</p>
+                <p className="mt-2 text-lg font-semibold">{data.billNo}</p>
+                <p className="mt-1 text-xs text-white/50">
+                  Issued at {data.store.name}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+                  Repair types
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {data.items.length === 0 ? (
+                    <p className="text-xs text-white/50">No repair items listed.</p>
+                  ) : (
+                    data.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {item.repairType.code} - {item.repairType.name}
+                        </span>
+                        <span className="text-xs text-white/70">
+                          LKR {item.price.toLocaleString()}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                     Total amount
                   </p>
-                  <p className="mt-2 text-xl font-semibold">LKR 6,500</p>
+                  <p className="mt-2 text-xl font-semibold">
+                    LKR {data.totalAmount.toLocaleString()}
+                  </p>
                   <p className="mt-1 text-xs text-white/50">
                     Includes labor and materials.
                   </p>
@@ -100,7 +305,9 @@ export default function TrackingPage() {
                   <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                     Advance paid
                   </p>
-                  <p className="mt-2 text-xl font-semibold">LKR 2,500</p>
+                  <p className="mt-2 text-xl font-semibold">
+                    LKR {data.advanceAmount.toLocaleString()}
+                  </p>
                   <p className="mt-1 text-xs text-white/50">
                     Balance due on pickup.
                   </p>
