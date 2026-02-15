@@ -344,19 +344,26 @@ export default function TrackingPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
                   Client
                 </p>
-                <p className="mt-2 text-lg font-semibold">{data.client.name}</p>
-                <p className="mt-1 text-xs text-white/50">
-                  {formatMobile(data.client.mobile)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Bill number
-                </p>
-                <p className="mt-2 text-lg font-semibold">{data.billNo}</p>
-                <p className="mt-1 text-xs text-white/50">
-                  Issued at {data.store.name}
-                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
+                      Name
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">{data.client.name}</p>
+                    <p className="mt-1 text-xs text-white/50">
+                      {formatMobile(data.client.mobile)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
+                      Bill number
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">{data.billNo}</p>
+                    <p className="mt-1 text-xs text-white/50">
+                      Issued at {data.store.name}
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
