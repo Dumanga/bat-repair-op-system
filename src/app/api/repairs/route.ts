@@ -82,6 +82,14 @@ function normalizeStatus(value: unknown): RepairStatus | null {
   return null;
 }
 
+function extractTrackingTokenFromSmsMessage(message: string | null | undefined) {
+  if (!message) {
+    return null;
+  }
+  const match = message.match(/Tracking token:\s*([A-Za-z0-9]+)/i);
+  return match?.[1] ?? null;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -144,15 +152,32 @@ export async function GET(request: Request) {
           brand: true,
           store: true,
           items: { include: { repairType: true } },
+          smsOutbox: {
+            where: { type: "REPAIR_CREATED" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { message: true },
+          },
         },
       }),
       prisma.repair.count({ where }),
     ]);
 
+    const shapedItems = items.map((item) => {
+      const trackingToken = extractTrackingTokenFromSmsMessage(
+        item.smsOutbox[0]?.message
+      );
+      return {
+        ...item,
+        trackingToken,
+        smsOutbox: undefined,
+      };
+    });
+
     return NextResponse.json(
       ok(
         {
-          items,
+          items: shapedItems,
           total,
           page,
           pageSize,

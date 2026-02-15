@@ -29,6 +29,7 @@ const statusMeta: Record<
 type RepairItem = {
   id: string;
   billNo: string;
+  trackingToken?: string;
   intakeType: "WALK_IN" | "COURIER";
   totalAmount: number;
   advanceAmount: number;
@@ -114,6 +115,7 @@ export default function RepairsPage() {
   const [showRepairTypes, setShowRepairTypes] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
+  const [trackingToken, setTrackingToken] = useState("");
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeType, setIntakeType] = useState("Walk-in");
   const [clientOpen, setClientOpen] = useState(false);
@@ -211,6 +213,15 @@ export default function RepairsPage() {
     { id: "item-1", repairTypeId: "", repairTypeName: "", price: "" },
   ]);
   const [editSnapshot, setEditSnapshot] = useState<EditSnapshot | null>(null);
+
+  const trackingBaseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "").trim();
+  const trackingUrl = useMemo(() => {
+    if (!trackingBaseUrl || !trackingToken) {
+      return "";
+    }
+    const normalizedBase = trackingBaseUrl.replace(/\/+$/, "");
+    return `${normalizedBase}/tracking?token=${encodeURIComponent(trackingToken)}`;
+  }, [trackingBaseUrl, trackingToken]);
 
   const totalRepairPages = useMemo(() => {
     return Math.max(1, Math.ceil(repairsTotal / repairsPageSize));
@@ -930,6 +941,7 @@ export default function RepairsPage() {
 
   function resetRepairForm() {
     setBillNo("");
+    setTrackingToken("");
     setSelectedClient(null);
     setClientSearch("");
     setClientOpen(false);
@@ -1743,6 +1755,7 @@ export default function RepairsPage() {
                         setViewMode(false);
                         setEditingRepairId(repair.id);
                         setBillNo(repair.billNo);
+                        setTrackingToken(repair.trackingToken ?? "");
                         setSelectedClient({
                           id: repair.client.id,
                           name: repair.client.name,
@@ -1785,6 +1798,7 @@ export default function RepairsPage() {
                       setShowCreateForm(true);
                       setViewMode(true);
                       setBillNo(repair.billNo);
+                      setTrackingToken(repair.trackingToken ?? "");
                       setSelectedClient({
                         id: repair.client.id,
                         name: repair.client.name,
@@ -2295,6 +2309,42 @@ export default function RepairsPage() {
                     <p className="mt-2 text-[var(--foreground)]">
                       {description?.trim() ? description : "No description added."}
                     </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                    <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                      Tracking link
+                    </p>
+                    {trackingUrl ? (
+                      <div className="mt-2 grid gap-3">
+                        <p className="text-xs text-[var(--text-muted)]">
+                          Share this link manually if customer SMS is not received.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            className="h-10 min-w-[16rem] flex-1 rounded-xl border border-[var(--stroke)] bg-[var(--panel)] px-3 text-xs text-[var(--foreground)] outline-none"
+                            value={trackingUrl}
+                            readOnly
+                          />
+                          <button
+                            type="button"
+                            className="h-10 rounded-xl border border-[var(--stroke)] bg-[var(--panel)] px-4 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(trackingUrl);
+                              } catch {
+                                // no-op
+                              }
+                            }}
+                          >
+                            Copy Link
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-[var(--text-muted)]">
+                        Tracking link is not available for this repair.
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : null}
