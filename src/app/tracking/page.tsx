@@ -41,6 +41,57 @@ const statusLabelMap: Record<TrackingData["status"], string> = {
   REPAIR_COMPLETED: "Repair Completed",
   DELIVERED: "Delivered",
 };
+const statusDescriptionMap: Record<TrackingData["status"], string> = {
+  PENDING: "Repair not started yet.",
+  PROCESSING: "Repair started and currently in progress.",
+  REPAIR_COMPLETED: "Ready to pickup.",
+  DELIVERED: "Repair has been delivered.",
+};
+
+const statusCardStyles: Record<
+  TrackingData["status"],
+  {
+    text: string;
+    panel: string;
+    border: string;
+    glow: string;
+    ring: string;
+    ringColor: string;
+  }
+> = {
+  PENDING: {
+    text: "text-sky-200",
+    panel: "bg-sky-500/10",
+    border: "border-sky-300/30",
+    glow: "bg-sky-400/20",
+    ring: "from-sky-300 via-cyan-300 to-sky-300",
+    ringColor: "rgba(125, 211, 252, 0.95)",
+  },
+  PROCESSING: {
+    text: "text-amber-200",
+    panel: "bg-amber-500/10",
+    border: "border-amber-300/35",
+    glow: "bg-amber-300/25",
+    ring: "from-amber-300 via-yellow-200 to-amber-300",
+    ringColor: "rgba(253, 224, 71, 0.95)",
+  },
+  REPAIR_COMPLETED: {
+    text: "text-emerald-200",
+    panel: "bg-emerald-500/10",
+    border: "border-emerald-300/35",
+    glow: "bg-emerald-300/25",
+    ring: "from-emerald-300 via-lime-200 to-emerald-300",
+    ringColor: "rgba(74, 222, 128, 0.95)",
+  },
+  DELIVERED: {
+    text: "text-zinc-200",
+    panel: "bg-zinc-500/10",
+    border: "border-zinc-300/35",
+    glow: "bg-zinc-300/25",
+    ring: "from-zinc-300 via-zinc-100 to-zinc-300",
+    ringColor: "rgba(228, 228, 231, 0.95)",
+  },
+};
 
 function formatMobile(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -137,6 +188,35 @@ export default function TrackingPage() {
     }
     return statusLabelMap[data.status] ?? data.status;
   }, [data]);
+  const statusDescription = useMemo(() => {
+    if (!data) {
+      return "Current stage of the repair.";
+    }
+    return (
+      statusDescriptionMap[data.status] ?? "Current stage of the repair."
+    );
+  }, [data]);
+  const statusStyle = useMemo(() => {
+    if (!data) {
+      return statusCardStyles.PENDING;
+    }
+    return statusCardStyles[data.status] ?? statusCardStyles.PENDING;
+  }, [data]);
+  const statusBorderGradient = useMemo(
+    () =>
+      `conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 40deg,
+        ${statusStyle.ringColor} 75deg,
+        transparent 110deg,
+        transparent 220deg,
+        ${statusStyle.ringColor} 250deg,
+        transparent 290deg,
+        transparent 360deg
+      )`,
+    [statusStyle.ringColor]
+  );
 
   if (loading) {
     return (
@@ -201,14 +281,27 @@ export default function TrackingPage() {
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Status
-                </p>
-                <p className="mt-2 text-xl font-semibold">{statusLabel}</p>
-                <p className="mt-1 text-xs text-white/50">
-                  Current stage of the repair.
-                </p>
+              <div className="relative overflow-hidden rounded-2xl p-[1px]">
+                <div
+                  className="pointer-events-none absolute inset-[-130%] animate-[spin_3.8s_linear_infinite]"
+                  style={{ backgroundImage: statusBorderGradient }}
+                />
+                <div
+                  className={`relative overflow-hidden rounded-2xl border p-4 ${statusStyle.border} ${statusStyle.panel}`}
+                >
+                  <span
+                    className={`pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full blur-2xl opacity-70 ${statusStyle.glow}`}
+                  />
+                  <p className="relative z-10 text-xs uppercase tracking-[0.2em] text-white/85">
+                    Status
+                  </p>
+                  <p className={`relative z-10 mt-2 text-xl font-semibold ${statusStyle.text}`}>
+                    {statusLabel}
+                  </p>
+                  <p className="relative z-10 mt-1 text-xs text-white/80">
+                    {statusDescription}
+                  </p>
+                </div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">
