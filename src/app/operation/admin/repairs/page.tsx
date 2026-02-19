@@ -84,6 +84,7 @@ type RepairLineItem = {
 };
 
 type EditSnapshot = {
+  intakeType: string;
   selectedDate: string;
   advanceAmount: string;
   description: string;
@@ -247,6 +248,7 @@ export default function RepairsPage() {
     }
 
     const current = {
+      intakeType: intakeType.trim(),
       selectedDate: selectedDate.trim(),
       advanceAmount: String(Number(advanceAmount || 0)),
       description: description.trim(),
@@ -254,12 +256,13 @@ export default function RepairsPage() {
     };
 
     return (
+      current.intakeType === editSnapshot.intakeType &&
       current.selectedDate === editSnapshot.selectedDate &&
       current.advanceAmount === editSnapshot.advanceAmount &&
       current.description === editSnapshot.description &&
       current.itemsSignature === editSnapshot.itemsSignature
     );
-  }, [editMode, editSnapshot, selectedDate, advanceAmount, description, repairItems]);
+  }, [editMode, editSnapshot, intakeType, selectedDate, advanceAmount, description, repairItems]);
 
   const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
     setCalendarLoading(true);
@@ -1726,7 +1729,7 @@ export default function RepairsPage() {
                       {statusUpdatingId === repair.id ? "Updating..." : "Update Status"}
                     </button>
                     <button
-                      className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                      className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)] disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => {
                         const mappedItems =
                           repair.items && repair.items.length > 0
@@ -1779,6 +1782,8 @@ export default function RepairsPage() {
                         setInitialDeliveryDate(dateValue);
                         setDescription(repair.description ?? "");
                         setEditSnapshot({
+                          intakeType:
+                            repair.intakeType === "COURIER" ? "Courier" : "Walk-in",
                           selectedDate: dateValue,
                           advanceAmount: String(Number(repair.advanceAmount || 0)),
                           description: (repair.description ?? "").trim(),
@@ -1786,6 +1791,7 @@ export default function RepairsPage() {
                         });
                         setIsModalOpen(false);
                       }}
+                      disabled={repair.status === "DELIVERED"}
                     >
                       Edit/Reschedule
                     </button>
@@ -1991,7 +1997,43 @@ export default function RepairsPage() {
                         <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                           Intake type
                         </p>
-                        <p className="mt-2 font-semibold">{intakeType}</p>
+                        <div className="relative mt-2">
+                          <button
+                            type="button"
+                            className="flex h-10 w-full items-center justify-between rounded-xl border border-[var(--stroke)] bg-[var(--panel)] px-3 text-sm text-[var(--foreground)] transition focus:border-[var(--accent)]"
+                            onClick={() => setIntakeOpen((prev) => !prev)}
+                            aria-expanded={intakeOpen}
+                          >
+                            <span>{intakeType}</span>
+                            <span className="text-xs text-[var(--text-muted)]">v</span>
+                          </button>
+                          {intakeOpen ? (
+                            <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl border border-[var(--stroke)] bg-[var(--panel)] p-2 shadow-xl">
+                              {["Walk-in", "Courier"].map((option) => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition ${
+                                    intakeType === option
+                                      ? "bg-[var(--panel-muted)] text-[var(--foreground)]"
+                                      : "text-[var(--text-muted)] hover:bg-[var(--panel-muted)] hover:text-[var(--foreground)]"
+                                  }`}
+                                  onClick={() => {
+                                    setIntakeType(option);
+                                    setIntakeOpen(false);
+                                  }}
+                                >
+                                  <span>{option}</span>
+                                  {intakeType === option ? (
+                                    <span className="text-xs text-[var(--text-muted)]">
+                                      Selected
+                                    </span>
+                                  ) : null}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
                         <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
