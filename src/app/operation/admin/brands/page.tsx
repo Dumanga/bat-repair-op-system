@@ -352,9 +352,11 @@ export default function BatBrandsPage() {
                   disabled={
                     saving ||
                     !newBrand.trim() ||
-                    (editingBrand &&
-                      newBrand.trim().toLowerCase() ===
-                        editingBrand.name.trim().toLowerCase())
+                    Boolean(
+                      editingBrand &&
+                        newBrand.trim().toLowerCase() ===
+                          editingBrand.name.trim().toLowerCase()
+                    )
                   }
                 >
                   {saving

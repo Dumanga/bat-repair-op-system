@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 
@@ -7,7 +8,7 @@ function parseNumber(value: string | null, fallback: number) {
   return Number.isFinite(num) && num > 0 ? num : fallback;
 }
 
-function normalizeStatus(value: unknown) {
+function normalizeStatus(value: unknown): "ACTIVE" | "PAUSED" | null {
   if (typeof value !== "string") {
     return null;
   }
@@ -26,20 +27,19 @@ export async function GET(request: Request) {
     const search = (searchParams.get("search") ?? "").trim();
     const status = normalizeStatus(searchParams.get("status"));
 
-    const where = {
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search } },
-              { code: { contains: search } },
-              { city: { contains: search } },
-            ],
-          }
-        : {}),
-      ...(status ? { status } : {}),
-    };
+    const where: Prisma.StoreWhereInput = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { code: { contains: search } },
+        { city: { contains: search } },
+      ];
+    }
+    if (status) {
+      where.status = status;
+    }
 
-    const baseUserWhere = {
+    const baseUserWhere: Prisma.UserWhereInput = {
       role: { not: "SUPER_ADMIN" },
       storeId: { not: null },
       system: { in: ["OPERATION", "BOTH"] },

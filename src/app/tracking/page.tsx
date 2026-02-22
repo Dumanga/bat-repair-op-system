@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type TrackingItem = {
@@ -114,6 +114,27 @@ function formatDate(value: string) {
 }
 
 export default function TrackingPage() {
+  return (
+    <Suspense fallback={<TrackingLoadingView />}>
+      <TrackingPageContent />
+    </Suspense>
+  );
+}
+
+function TrackingLoadingView() {
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] text-white">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-16">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-8 py-10 backdrop-blur-xl">
+          <span className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-emerald-400" />
+          <p className="text-sm text-white/70">Loading tracking details...</p>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function TrackingPageContent() {
   const searchParams = useSearchParams();
   const token = (searchParams.get("token") ?? "").trim();
   const [loading, setLoading] = useState(true);
@@ -219,16 +240,7 @@ export default function TrackingPage() {
   );
 
   if (loading) {
-    return (
-      <main className="relative min-h-screen overflow-hidden bg-[#0b0f14] text-white">
-        <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-16">
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 px-8 py-10 backdrop-blur-xl">
-            <span className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-emerald-400" />
-            <p className="text-sm text-white/70">Loading tracking details...</p>
-          </div>
-        </div>
-      </main>
-    );
+    return <TrackingLoadingView />;
   }
 
   if (!data || error) {

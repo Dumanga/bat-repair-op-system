@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
+import { buildRepairCreatedMessage, buildTrackingUrl } from "@/lib/sms/messages";
+import { sendTextLkSms } from "@/lib/sms/textlk";
 
 const statusOrder = [
   "PENDING",
@@ -86,8 +89,24 @@ function extractTrackingTokenFromSmsMessage(message: string | null | undefined) 
   if (!message) {
     return null;
   }
-  const match = message.match(/Tracking token:\s*([A-Za-z0-9]+)/i);
-  return match?.[1] ?? null;
+  const explicitToken = message.match(/Tracking token:\s*([A-Za-z0-9]+)/i);
+  if (explicitToken?.[1]) {
+    return explicitToken[1];
+  }
+  const shortUrlToken = message.match(/\/t\/([A-Za-z0-9]+)/i);
+  if (shortUrlToken?.[1]) {
+    return shortUrlToken[1];
+  }
+  const queryToken = message.match(/[?&]token=([A-Za-z0-9]+)/i);
+  return queryToken?.[1] ?? null;
+}
+
+function getBaseUrlForTracking(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (configured) {
+    return configured;
+  }
+  return new URL(request.url).origin;
 }
 
 export async function GET(request: Request) {
@@ -100,46 +119,45 @@ export async function GET(request: Request) {
     const storeId = (searchParams.get("storeId") ?? "").trim();
     const excludeDelivered = searchParams.get("excludeDelivered") === "1";
 
-    const where = {
-      ...(search
-        ? {
-            OR: [
-              {
-                billNo: {
-                  contains: search,
-                },
-              },
-              {
-                client: {
-                  name: {
-                    contains: search,
-                  },
-                },
-              },
-              {
-                client: {
-                  mobile: {
-                    contains: search,
-                  },
-                },
-              },
-              {
-                brand: {
-                  name: {
-                    contains: search,
-                  },
-                },
-              },
-            ],
-          }
-        : {}),
-      ...(status
-        ? { status }
-        : excludeDelivered
-          ? { status: { not: "DELIVERED" } }
-          : {}),
-      ...(storeId ? { storeId } : {}),
-    };
+    const where: Prisma.RepairWhereInput = {};
+    if (search) {
+      where.OR = [
+        {
+          billNo: {
+            contains: search,
+          },
+        },
+        {
+          client: {
+            name: {
+              contains: search,
+            },
+          },
+        },
+        {
+          client: {
+            mobile: {
+              contains: search,
+            },
+          },
+        },
+        {
+          brand: {
+            name: {
+              contains: search,
+            },
+          },
+        },
+      ];
+    }
+    if (status) {
+      where.status = status;
+    } else if (excludeDelivered) {
+      where.status = { not: "DELIVERED" };
+    }
+    if (storeId) {
+      where.storeId = storeId;
+    }
 
     const [items, total] = await Promise.all([
       prisma.repair.findMany({
@@ -348,6 +366,10 @@ export async function POST(request: Request) {
       .createHash("sha256")
       .update(trackingToken)
       .digest("hex");
+    const trackingUrl = buildTrackingUrl(
+      getBaseUrlForTracking(request),
+      trackingToken
+    );
 
     const created = await prisma.$transaction(async (tx) => {
       const sequence = await tx.repairBillSequence.upsert({
@@ -377,6 +399,10 @@ export async function POST(request: Request) {
           createdById: user.id,
         },
       });
+      const smsMessage = buildRepairCreatedMessage({
+        billNo,
+        trackingUrl,
+      });
       await tx.repairItem.createMany({
         data: parsedItems.map((item) => ({
           repairId: repair.id,
@@ -385,11 +411,11 @@ export async function POST(request: Request) {
         })),
       });
 
-      await tx.smsOutbox.create({
+      const smsOutbox = await tx.smsOutbox.create({
         data: {
           repairId: repair.id,
           recipient: client.mobile,
-          message: `Repair ${billNo} received. Tracking token: ${trackingToken}`,
+          message: smsMessage,
           type: "REPAIR_CREATED",
           status: "PENDING",
           scheduledFor: new Date(),
@@ -409,10 +435,75 @@ export async function POST(request: Request) {
         },
       });
 
-      return repair;
+      return {
+        repair,
+        smsOutboxId: smsOutbox.id,
+        smsRecipient: client.mobile,
+        smsMessage,
+      };
     });
 
-    return NextResponse.json(ok(created, "Repair created."), { status: 201 });
+    const smsSendResult = await sendTextLkSms({
+      phoneNumber: created.smsRecipient,
+      message: created.smsMessage,
+    });
+
+    if (smsSendResult.success) {
+      await prisma.$transaction([
+        prisma.smsOutbox.update({
+          where: { id: created.smsOutboxId },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+            providerResponse: smsSendResult.providerResponse,
+          },
+        }),
+        prisma.repairAudit.create({
+          data: {
+            repairId: created.repair.id,
+            eventType: "SMS_SENT",
+            oldValue: null,
+            newValue: smsSendResult.providerResponse,
+            performedById: user.id,
+          },
+        }),
+      ]);
+
+      return NextResponse.json(
+        ok(
+          { ...created.repair, smsStatus: "SENT" },
+          "Repair created and SMS sent."
+        ),
+        { status: 201 }
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.smsOutbox.update({
+        where: { id: created.smsOutboxId },
+        data: {
+          status: "FAILED",
+          providerResponse: smsSendResult.providerResponse,
+        },
+      }),
+      prisma.repairAudit.create({
+        data: {
+          repairId: created.repair.id,
+          eventType: "SMS_FAILED",
+          oldValue: null,
+          newValue: smsSendResult.errorMessage ?? smsSendResult.providerResponse,
+          performedById: user.id,
+        },
+      }),
+    ]);
+
+    return NextResponse.json(
+      ok(
+        { ...created.repair, smsStatus: "FAILED" },
+        "Repair created, but SMS sending failed."
+      ),
+      { status: 201 }
+    );
   } catch (error) {
     if (
       typeof error === "object" &&

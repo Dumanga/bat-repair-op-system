@@ -493,3 +493,25 @@
   - Added mobile-first reminder cards for small screens and kept the table view for `md+`.
   - Tightened responsive paddings/typography in SMS header and listing containers.
   - Kept chip filters and reminder action behavior consistent across mobile and desktop layouts.
+
+## 2026-02-22 17:40
+- Implemented Text.lk SMS provider wrapper with retry and response/error normalization in `src/lib/sms/textlk.ts`.
+- Added shared repair SMS message helpers in `src/lib/sms/messages.ts` to build tracking links and repair-created message content.
+- Updated `POST /api/repairs` to:
+  - Build tracking URL and repair-created SMS content.
+  - Create `SmsOutbox` records in `PENDING`.
+  - Attempt real SMS send via Text.lk wrapper.
+  - Persist SMS outcome to outbox (`SENT` + `sentAt` or `FAILED`) with provider response.
+  - Write repair audit events for SMS results (`SMS_SENT` / `SMS_FAILED`).
+- Added `TEXTLK_API_TOKEN` and `TEXTLK_SENDER_ID` placeholders to `.env.example`.
+
+## 2026-02-22 17:49
+- Enforced SMS-size-safe repair-created message composition with a 170-character limit in `src/lib/sms/messages.ts`.
+- Switched tracking URL in SMS to a shorter route (`/t/:token`) and added redirect handler `src/app/t/[token]/route.ts` to forward to `/tracking?token=...`.
+- Updated tracking token extraction in repairs API to support token parsing from:
+  - `Tracking token: ...`
+  - short link path (`/t/<token>`)
+  - query string token (`?token=...`)
+- Resolved multiple strict TypeScript/build blockers across existing files (users/stores/brands/clients/repairs/tracking pages).
+- Added local type declaration for `textlk-node` and updated `tsconfig.json` include patterns for `*.d.ts`.
+- Verified production build now passes successfully.

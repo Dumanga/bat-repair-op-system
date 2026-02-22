@@ -34,12 +34,18 @@ type RepairItem = {
   totalAmount: number;
   advanceAmount: number;
   estimatedDeliveryDate: string;
+  description?: string | null;
   status: "PENDING" | "PROCESSING" | "REPAIR_COMPLETED" | "DELIVERED";
   isPostponed: boolean;
   client: { id: string; name: string; mobile: string };
   brand: { id: string; name: string };
   repairTypeId?: string | null;
-  items?: Array<{ id: string; repairTypeId: string; price: number }>;
+  items?: Array<{
+    id: string;
+    repairTypeId: string;
+    price: number;
+    repairType?: { id: string; name: string; code: string } | null;
+  }>;
   store: { id: string; name: string };
 };
 
@@ -597,11 +603,12 @@ export default function RepairsPage() {
         if (!response.ok || !payload.success || !payload.data) {
           throw new Error(payload.message || "Unable to load clients.");
         }
+        const data = payload.data;
         setClients((prev) =>
-          clientPage === 1 ? payload.data.items : [...prev, ...payload.data.items]
+          clientPage === 1 ? data.items : [...prev, ...data.items]
         );
-        const loaded = clientPage * payload.data.pageSize;
-        setClientHasMore(loaded < payload.data.total);
+        const loaded = clientPage * data.pageSize;
+        setClientHasMore(loaded < data.total);
       } catch (err) {
         setClientError(
           err instanceof Error ? err.message : "Unable to load clients."
@@ -832,11 +839,12 @@ export default function RepairsPage() {
         if (!response.ok || !payload.success || !payload.data) {
           throw new Error(payload.message || "Unable to load brands.");
         }
+        const data = payload.data;
         setBrands((prev) =>
-          brandPage === 1 ? payload.data.items : [...prev, ...payload.data.items]
+          brandPage === 1 ? data.items : [...prev, ...data.items]
         );
-        const loaded = brandPage * payload.data.pageSize;
-        setBrandHasMore(loaded < payload.data.total);
+        const loaded = brandPage * data.pageSize;
+        setBrandHasMore(loaded < data.total);
       } catch (err) {
         setBrandError(
           err instanceof Error ? err.message : "Unable to load brands."
@@ -925,11 +933,12 @@ export default function RepairsPage() {
         if (!response.ok || !payload.success || !payload.data) {
           throw new Error(payload.message || "Unable to load stores.");
         }
+        const data = payload.data;
         setStores((prev) =>
-          storePage === 1 ? payload.data.items : [...prev, ...payload.data.items]
+          storePage === 1 ? data.items : [...prev, ...data.items]
         );
-        const loaded = storePage * payload.data.pageSize;
-        setStoreHasMore(loaded < payload.data.total);
+        const loaded = storePage * data.pageSize;
+        setStoreHasMore(loaded < data.total);
       } catch (err) {
         setStoreError(
           err instanceof Error ? err.message : "Unable to load stores."

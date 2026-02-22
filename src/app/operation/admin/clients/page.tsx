@@ -562,11 +562,13 @@ export default function ClientsPage() {
                     saving ||
                     !name.trim() ||
                     mobile.replace(/\D/g, "").length !== MOBILE_DIGITS ||
-                    (editingClient &&
-                      name.trim().toLowerCase() ===
-                        editingClient.name.trim().toLowerCase() &&
-                      buildMobile(mobile) === editingClient.mobile &&
-                      tier === editingClient.tier)
+                    Boolean(
+                      editingClient &&
+                        name.trim().toLowerCase() ===
+                          editingClient.name.trim().toLowerCase() &&
+                        buildMobile(mobile) === editingClient.mobile &&
+                        tier === editingClient.tier
+                    )
                   }
                 >
                   {saving

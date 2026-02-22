@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 
@@ -39,13 +40,13 @@ export async function GET(request: Request) {
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
     const search = (searchParams.get("search") ?? "").trim();
 
-    const baseWhere = {
+    const baseWhere: Prisma.UserWhereInput = {
       system: {
         in: ["OPERATION", "BOTH"],
       },
     };
 
-    const where = search
+    const where: Prisma.UserWhereInput = search
       ? {
           AND: [
             baseWhere,

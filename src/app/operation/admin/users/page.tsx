@@ -490,7 +490,7 @@ export default function UsersPage() {
                       setDisplayName(user.displayName);
                       setUsername(user.username);
                       setPassword("");
-                      setRole(user.role === "SUPER_ADMIN" ? "CASHIER" : user.role);
+                      setRole(user.role);
                       setRoleOpen(false);
                       setProfileImageId(user.profileImageId);
                       setStoreId(user.storeId ?? "");
