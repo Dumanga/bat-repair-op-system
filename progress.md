@@ -515,3 +515,12 @@
 - Resolved multiple strict TypeScript/build blockers across existing files (users/stores/brands/clients/repairs/tracking pages).
 - Added local type declaration for `textlk-node` and updated `tsconfig.json` include patterns for `*.d.ts`.
 - Verified production build now passes successfully.
+
+## 2026-02-22 18:24
+- Added SMS send on repair update (`PATCH /api/repairs`) using the same tracking link flow as create.
+- Update SMS body now uses "updated" wording (instead of "created"), with the same 170-character-safe formatter.
+- Implemented update-SMS outbox lifecycle:
+  - Create `SmsOutbox` row as `PENDING` with type `REPAIR_UPDATED`
+  - Attempt send via Text.lk wrapper
+  - Persist result as `SENT`/`FAILED` with provider response
+- Added audit events for update SMS outcomes (`SMS_SENT`, `SMS_FAILED`), and `SMS_SKIPPED` when tracking token cannot be resolved from existing SMS history.

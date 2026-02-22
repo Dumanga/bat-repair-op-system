@@ -10,23 +10,40 @@ export function buildTrackingUrl(baseUrl: string, trackingToken: string) {
 
 const SMS_CHAR_LIMIT = 170;
 
-export function buildRepairCreatedMessage({
-  billNo,
-  trackingUrl,
-}: BuildRepairCreatedMessageParams) {
-  const protocolStrippedLink = trackingUrl.replace(/^https?:\/\//i, "");
-  const candidates = [
-    `DOB: Repair ${billNo} created. Track: ${trackingUrl}`,
-    `DOB: Repair ${billNo} created. ${trackingUrl}`,
-    `DOB: Repair ${billNo} created. Track: ${protocolStrippedLink}`,
-    `DOB: ${billNo} created. ${protocolStrippedLink}`,
-  ];
-
+function pickBoundedMessage(candidates: string[]) {
   for (const candidate of candidates) {
     if (candidate.length <= SMS_CHAR_LIMIT) {
       return candidate;
     }
   }
-
   return candidates[candidates.length - 1].slice(0, SMS_CHAR_LIMIT);
+}
+
+function buildRepairLifecycleMessage(
+  billNo: string,
+  trackingUrl: string,
+  verb: "created" | "updated"
+) {
+  const protocolStrippedLink = trackingUrl.replace(/^https?:\/\//i, "");
+  const candidates = [
+    `DOB: Repair ${billNo} ${verb}. Track: ${trackingUrl}`,
+    `DOB: Repair ${billNo} ${verb}. ${trackingUrl}`,
+    `DOB: Repair ${billNo} ${verb}. Track: ${protocolStrippedLink}`,
+    `DOB: ${billNo} ${verb}. ${protocolStrippedLink}`,
+  ];
+  return pickBoundedMessage(candidates);
+}
+
+export function buildRepairCreatedMessage({
+  billNo,
+  trackingUrl,
+}: BuildRepairCreatedMessageParams) {
+  return buildRepairLifecycleMessage(billNo, trackingUrl, "created");
+}
+
+export function buildRepairUpdatedMessage({
+  billNo,
+  trackingUrl,
+}: BuildRepairCreatedMessageParams) {
+  return buildRepairLifecycleMessage(billNo, trackingUrl, "updated");
 }

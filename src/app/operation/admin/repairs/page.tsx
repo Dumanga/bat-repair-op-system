@@ -1284,7 +1284,7 @@ export default function RepairsPage() {
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to update repair.");
       }
-      setSuccessMessage("Repair updated successfully.");
+      setSuccessMessage(payload.message || "Repair updated successfully.");
       setTimeout(() => {
         setSuccessMessage(null);
         setIsModalOpen(false);

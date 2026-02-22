@@ -5,7 +5,11 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
-import { buildRepairCreatedMessage, buildTrackingUrl } from "@/lib/sms/messages";
+import {
+  buildRepairCreatedMessage,
+  buildRepairUpdatedMessage,
+  buildTrackingUrl,
+} from "@/lib/sms/messages";
 import { sendTextLkSms } from "@/lib/sms/textlk";
 
 const statusOrder = [
@@ -98,7 +102,11 @@ function extractTrackingTokenFromSmsMessage(message: string | null | undefined) 
     return shortUrlToken[1];
   }
   const queryToken = message.match(/[?&]token=([A-Za-z0-9]+)/i);
-  return queryToken?.[1] ?? null;
+  if (queryToken?.[1]) {
+    return queryToken[1];
+  }
+  const legacyQueryToken = message.match(/[?&]trackingcode=([A-Za-z0-9]+)/i);
+  return legacyQueryToken?.[1] ?? null;
 }
 
 function getBaseUrlForTracking(request: Request) {
@@ -578,6 +586,7 @@ export async function PATCH(request: Request) {
 
     const repair = await prisma.repair.findUnique({
       where: { id },
+      include: { client: true },
     });
 
     if (!repair) {
@@ -832,7 +841,111 @@ export async function PATCH(request: Request) {
       }
     });
 
-    return NextResponse.json(ok(null, "Repair updated."), { status: 200 });
+    const latestSmsWithToken = await prisma.smsOutbox.findFirst({
+      where: {
+        repairId: id,
+        type: {
+          in: ["REPAIR_CREATED", "REPAIR_UPDATED"],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { message: true },
+    });
+
+    const existingTrackingToken = extractTrackingTokenFromSmsMessage(
+      latestSmsWithToken?.message
+    );
+
+    if (!existingTrackingToken) {
+      await prisma.repairAudit.create({
+        data: {
+          repairId: id,
+          eventType: "SMS_SKIPPED",
+          oldValue: null,
+          newValue: "Tracking token not found for update SMS.",
+          performedById: user.id,
+        },
+      });
+      return NextResponse.json(
+        ok(null, "Repair updated, but SMS skipped due to missing tracking token."),
+        { status: 200 }
+      );
+    }
+
+    const trackingUrl = buildTrackingUrl(
+      getBaseUrlForTracking(request),
+      existingTrackingToken
+    );
+    const smsMessage = buildRepairUpdatedMessage({
+      billNo: repair.billNo,
+      trackingUrl,
+    });
+
+    const smsOutbox = await prisma.smsOutbox.create({
+      data: {
+        repairId: id,
+        recipient: repair.client.mobile,
+        message: smsMessage,
+        type: "REPAIR_UPDATED",
+        status: "PENDING",
+        scheduledFor: new Date(),
+      },
+    });
+
+    const smsSendResult = await sendTextLkSms({
+      phoneNumber: repair.client.mobile,
+      message: smsMessage,
+    });
+
+    if (smsSendResult.success) {
+      await prisma.$transaction([
+        prisma.smsOutbox.update({
+          where: { id: smsOutbox.id },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+            providerResponse: smsSendResult.providerResponse,
+          },
+        }),
+        prisma.repairAudit.create({
+          data: {
+            repairId: id,
+            eventType: "SMS_SENT",
+            oldValue: null,
+            newValue: smsSendResult.providerResponse,
+            performedById: user.id,
+          },
+        }),
+      ]);
+
+      return NextResponse.json(ok(null, "Repair updated and SMS sent."), {
+        status: 200,
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.smsOutbox.update({
+        where: { id: smsOutbox.id },
+        data: {
+          status: "FAILED",
+          providerResponse: smsSendResult.providerResponse,
+        },
+      }),
+      prisma.repairAudit.create({
+        data: {
+          repairId: id,
+          eventType: "SMS_FAILED",
+          oldValue: null,
+          newValue: smsSendResult.errorMessage ?? smsSendResult.providerResponse,
+          performedById: user.id,
+        },
+      }),
+    ]);
+
+    return NextResponse.json(
+      ok(null, "Repair updated, but SMS sending failed."),
+      { status: 200 }
+    );
   } catch {
     return NextResponse.json(fail("Unexpected server error.", "SERVER_ERROR"), {
       status: 500,
