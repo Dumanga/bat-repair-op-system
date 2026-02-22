@@ -3,6 +3,12 @@ type BuildRepairCreatedMessageParams = {
   trackingUrl: string;
 };
 
+type BuildRepairStatusMessageParams = {
+  billNo: string;
+  nextStatus: "PROCESSING" | "REPAIR_COMPLETED" | "DELIVERED";
+  trackingUrl?: string;
+};
+
 export function buildTrackingUrl(baseUrl: string, trackingToken: string) {
   const normalizedBase = baseUrl.replace(/\/+$/, "");
   return `${normalizedBase}/tracking?token=${encodeURIComponent(trackingToken)}`;
@@ -46,4 +52,40 @@ export function buildRepairUpdatedMessage({
   trackingUrl,
 }: BuildRepairCreatedMessageParams) {
   return buildRepairLifecycleMessage(billNo, trackingUrl, "updated");
+}
+
+export function buildRepairStatusMessage({
+  billNo,
+  nextStatus,
+  trackingUrl,
+}: BuildRepairStatusMessageParams) {
+  if (nextStatus === "PROCESSING") {
+    if (!trackingUrl) {
+      return pickBoundedMessage([`DOB: Repair ${billNo} started.`]);
+    }
+    const protocolStrippedLink = trackingUrl.replace(/^https?:\/\//i, "");
+    return pickBoundedMessage([
+      `DOB: Repair ${billNo} started. Track: ${trackingUrl}`,
+      `DOB: Repair ${billNo} started. ${trackingUrl}`,
+      `DOB: Repair ${billNo} started. Track: ${protocolStrippedLink}`,
+    ]);
+  }
+
+  if (nextStatus === "REPAIR_COMPLETED") {
+    if (!trackingUrl) {
+      return pickBoundedMessage([
+        `DOB: Repair ${billNo} completed. Ready for pickup.`,
+      ]);
+    }
+    const protocolStrippedLink = trackingUrl.replace(/^https?:\/\//i, "");
+    return pickBoundedMessage([
+      `DOB: Repair ${billNo} completed. Ready for pickup. Track: ${trackingUrl}`,
+      `DOB: Repair ${billNo} completed. Ready for pickup. ${trackingUrl}`,
+      `DOB: Repair ${billNo} ready. Track: ${protocolStrippedLink}`,
+    ]);
+  }
+
+  return pickBoundedMessage([
+    `DOB: Repair ${billNo} delivered successfully. Thank you.`,
+  ]);
 }

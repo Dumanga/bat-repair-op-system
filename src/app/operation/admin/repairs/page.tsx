@@ -1284,6 +1284,13 @@ export default function RepairsPage() {
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to update repair.");
       }
+      const smsFailed =
+        payload.message.toLowerCase().includes("sms") &&
+        payload.message.toLowerCase().includes("failed");
+      setToast({
+        tone: smsFailed ? "error" : "success",
+        message: payload.message || "Repair updated successfully.",
+      });
       setSuccessMessage(payload.message || "Repair updated successfully.");
       setTimeout(() => {
         setSuccessMessage(null);
@@ -1335,13 +1342,24 @@ export default function RepairsPage() {
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to update status.");
       }
+      const smsFailed =
+        payload.message.toLowerCase().includes("sms") &&
+        payload.message.toLowerCase().includes("failed");
+      setToast({
+        tone: smsFailed ? "error" : "success",
+        message: payload.message || "Status updated.",
+      });
       setStatusConfirmOpen(false);
       setPendingStatusRepair(null);
       loadRepairs();
     } catch (err) {
-      setRepairsError(
-        err instanceof Error ? err.message : "Unable to update status."
-      );
+      const message =
+        err instanceof Error ? err.message : "Unable to update status.";
+      setRepairsError(message);
+      setToast({
+        tone: "error",
+        message,
+      });
     } finally {
       setStatusUpdatingId(null);
     }

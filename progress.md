@@ -524,3 +524,18 @@
   - Attempt send via Text.lk wrapper
   - Persist result as `SENT`/`FAILED` with provider response
 - Added audit events for update SMS outcomes (`SMS_SENT`, `SMS_FAILED`), and `SMS_SKIPPED` when tracking token cannot be resolved from existing SMS history.
+
+## 2026-02-22 18:48
+- Implemented status-transition SMS notifications in `PATCH /api/repairs`:
+  - `PENDING -> PROCESSING`: sends "repair started" SMS with tracking link.
+  - `PROCESSING -> REPAIR_COMPLETED`: sends "repair completed" SMS with tracking link.
+  - `REPAIR_COMPLETED -> DELIVERED`: sends "repair delivered successfully, thank you" SMS without link.
+- Added dedicated status SMS message builder in `src/lib/sms/messages.ts` with 170-character-safe formatting.
+- Status-transition SMS now creates outbox rows with explicit types (`REPAIR_STARTED`, `REPAIR_COMPLETED`, `REPAIR_DELIVERED`) and persists `SENT`/`FAILED` outcomes + provider responses.
+- Extended tracking token extraction compatibility during update/status SMS to support legacy and current URL patterns.
+
+## 2026-02-22 18:58
+- Extended repair action toast notifications (top-right, auto-hide) to cover:
+  - Repair edit/update responses
+  - Status transition update responses
+- Toast messaging now surfaces backend SMS outcomes consistently for create/update/status flows (success vs SMS-failure/error states).

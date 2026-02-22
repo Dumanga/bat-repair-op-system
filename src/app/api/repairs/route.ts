@@ -7,6 +7,7 @@ import { fail, ok } from "@/lib/api/response";
 import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 import {
   buildRepairCreatedMessage,
+  buildRepairStatusMessage,
   buildRepairUpdatedMessage,
   buildTrackingUrl,
 } from "@/lib/sms/messages";
@@ -806,6 +807,8 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const statusChangedTo = (updateData.status as RepairStatus | undefined) ?? null;
+
     await prisma.$transaction(async (tx) => {
       await tx.repair.update({
         where: { id },
@@ -841,52 +844,88 @@ export async function PATCH(request: Request) {
       }
     });
 
-    const latestSmsWithToken = await prisma.smsOutbox.findFirst({
+    const recentSmsMessages = await prisma.smsOutbox.findMany({
       where: {
         repairId: id,
-        type: {
-          in: ["REPAIR_CREATED", "REPAIR_UPDATED"],
-        },
       },
       orderBy: { createdAt: "desc" },
+      take: 20,
       select: { message: true },
     });
 
-    const existingTrackingToken = extractTrackingTokenFromSmsMessage(
-      latestSmsWithToken?.message
-    );
+    const existingTrackingToken =
+      recentSmsMessages
+        .map((entry) => extractTrackingTokenFromSmsMessage(entry.message))
+        .find((token) => Boolean(token)) ?? null;
 
-    if (!existingTrackingToken) {
+    const needsTrackingLink =
+      statusChangedTo === "PROCESSING" ||
+      statusChangedTo === "REPAIR_COMPLETED" ||
+      statusChangedTo === null;
+
+    if (needsTrackingLink && !existingTrackingToken) {
       await prisma.repairAudit.create({
         data: {
           repairId: id,
           eventType: "SMS_SKIPPED",
           oldValue: null,
-          newValue: "Tracking token not found for update SMS.",
+          newValue:
+            statusChangedTo === null
+              ? "Tracking token not found for update SMS."
+              : `Tracking token not found for ${statusChangedTo} status SMS.`,
           performedById: user.id,
         },
       });
       return NextResponse.json(
-        ok(null, "Repair updated, but SMS skipped due to missing tracking token."),
+        ok(
+          null,
+          statusChangedTo === null
+            ? "Repair updated, but SMS skipped due to missing tracking token."
+            : "Status updated, but SMS skipped due to missing tracking token."
+        ),
         { status: 200 }
       );
     }
 
-    const trackingUrl = buildTrackingUrl(
-      getBaseUrlForTracking(request),
-      existingTrackingToken
-    );
-    const smsMessage = buildRepairUpdatedMessage({
-      billNo: repair.billNo,
-      trackingUrl,
-    });
+    const trackingUrl =
+      existingTrackingToken !== null
+        ? buildTrackingUrl(getBaseUrlForTracking(request), existingTrackingToken)
+        : null;
+
+    const statusSmsNext =
+      statusChangedTo === "PROCESSING" ||
+      statusChangedTo === "REPAIR_COMPLETED" ||
+      statusChangedTo === "DELIVERED"
+        ? statusChangedTo
+        : null;
+
+    const smsMessage =
+      statusSmsNext !== null
+        ? buildRepairStatusMessage({
+            billNo: repair.billNo,
+            nextStatus: statusSmsNext,
+            trackingUrl: trackingUrl ?? undefined,
+          })
+        : buildRepairUpdatedMessage({
+            billNo: repair.billNo,
+            trackingUrl: trackingUrl ?? "",
+          });
+
+    const smsType =
+      statusChangedTo === "PROCESSING"
+        ? "REPAIR_STARTED"
+        : statusChangedTo === "REPAIR_COMPLETED"
+          ? "REPAIR_COMPLETED"
+          : statusChangedTo === "DELIVERED"
+            ? "REPAIR_DELIVERED"
+            : "REPAIR_UPDATED";
 
     const smsOutbox = await prisma.smsOutbox.create({
       data: {
         repairId: id,
         recipient: repair.client.mobile,
         message: smsMessage,
-        type: "REPAIR_UPDATED",
+        type: smsType,
         status: "PENDING",
         scheduledFor: new Date(),
       },
@@ -918,9 +957,15 @@ export async function PATCH(request: Request) {
         }),
       ]);
 
-      return NextResponse.json(ok(null, "Repair updated and SMS sent."), {
-        status: 200,
-      });
+      return NextResponse.json(
+        ok(
+          null,
+          statusChangedTo === null
+            ? "Repair updated and SMS sent."
+            : "Status updated and SMS sent."
+        ),
+        { status: 200 }
+      );
     }
 
     await prisma.$transaction([
@@ -943,7 +988,12 @@ export async function PATCH(request: Request) {
     ]);
 
     return NextResponse.json(
-      ok(null, "Repair updated, but SMS sending failed."),
+      ok(
+        null,
+        statusChangedTo === null
+          ? "Repair updated, but SMS sending failed."
+          : "Status updated, but SMS sending failed."
+      ),
       { status: 200 }
     );
   } catch {
