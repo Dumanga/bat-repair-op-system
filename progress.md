@@ -480,3 +480,16 @@
 - Tightened repair item validation so blank repair-type rows are not allowed (rows must have a selected type or be removed).
 - Applied the same validation path to create/update form checks for consistent behavior.
 - Verified with ESLint: no new errors introduced by this patch.
+
+## 2026-02-22 17:04
+- Replaced SMS Portal placeholder with a full UI-only Delivery Reminder Queue in `src/app/operation/admin/sms/page.tsx`.
+- Added three filter chips (All / Walk-in / Courier), today-date chip in header, and dynamic list columns (bill no, client, bat, status, estimated delivery, action).
+- Loaded all repairs scheduled for exactly two days ahead (no pagination in UI), with per-row `Send Reminder` action and confirmation popup.
+- Added repair status badges to the SMS listing.
+- Refined SMS header card spacing/alignment and reduced gap between header and listing cards per UI feedback.
+
+## 2026-02-22 17:09
+- Improved SMS Portal responsiveness to match other operational modules:
+  - Added mobile-first reminder cards for small screens and kept the table view for `md+`.
+  - Tightened responsive paddings/typography in SMS header and listing containers.
+  - Kept chip filters and reminder action behavior consistent across mobile and desktop layouts.
