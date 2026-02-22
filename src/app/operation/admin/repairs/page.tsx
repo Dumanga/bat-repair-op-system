@@ -97,6 +97,11 @@ type EditSnapshot = {
   itemsSignature: string;
 };
 
+type ToastState = {
+  tone: "success" | "error";
+  message: string;
+};
+
 function normalizeRepairItems(items: RepairLineItem[]) {
   return items.map((item) => ({
     repairTypeId: item.repairTypeId.trim(),
@@ -210,6 +215,7 @@ export default function RepairsPage() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [validationOpen, setValidationOpen] = useState(false);
   const [validationMessage, setValidationMessage] = useState("");
   const [repairTypeOptions, setRepairTypeOptions] = useState<RepairTypeItem[]>([]);
@@ -339,6 +345,16 @@ export default function RepairsPage() {
   useEffect(() => {
     setTotalAmount(String(computedTotalAmount));
   }, [computedTotalAmount]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setToast(null);
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [toast]);
 
   const loadRepairTypes = useCallback(async () => {
     if (!showRepairTypes) {
@@ -1193,6 +1209,13 @@ export default function RepairsPage() {
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to create repair.");
       }
+      const smsFailed =
+        payload.message.toLowerCase().includes("sms") &&
+        payload.message.toLowerCase().includes("failed");
+      setToast({
+        tone: smsFailed ? "error" : "success",
+        message: payload.message || "Repair created.",
+      });
       setConfirmOpen(false);
       setShowCreateForm(false);
       resetRepairForm();
@@ -2975,7 +2998,7 @@ export default function RepairsPage() {
           createError ??
           `Bill ${billNo} for ${
             selectedClient ? selectedClient.name : "client"
-          } at ${selectedStore?.name ?? "store"} will be created and SMS queued.`
+          } at ${selectedStore?.name ?? "store"} will be created and SMS will be sent.`
         }
         confirmLabel="Confirm"
         cancelLabel="Cancel"
@@ -2988,6 +3011,17 @@ export default function RepairsPage() {
         }}
         onConfirm={confirmCreateRepair}
       />
+      {toast ? (
+        <div
+          className={`animate-rise fixed right-4 top-4 z-[120] w-[calc(100vw-2rem)] max-w-md rounded-2xl border px-4 py-3 text-sm shadow-xl sm:w-full ${
+            toast.tone === "success"
+              ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-100"
+              : "border-rose-400/40 bg-rose-500/15 text-rose-100"
+          }`}
+        >
+          {toast.message}
+        </div>
+      ) : null}
       {clientCreateOpen ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-lg rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-6 shadow-xl">

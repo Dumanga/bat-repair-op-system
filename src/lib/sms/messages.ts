@@ -5,7 +5,7 @@ type BuildRepairCreatedMessageParams = {
 
 export function buildTrackingUrl(baseUrl: string, trackingToken: string) {
   const normalizedBase = baseUrl.replace(/\/+$/, "");
-  return `${normalizedBase}/t/${encodeURIComponent(trackingToken)}`;
+  return `${normalizedBase}/tracking?token=${encodeURIComponent(trackingToken)}`;
 }
 
 const SMS_CHAR_LIMIT = 170;

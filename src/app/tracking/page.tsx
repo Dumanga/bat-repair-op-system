@@ -136,7 +136,11 @@ function TrackingLoadingView() {
 
 function TrackingPageContent() {
   const searchParams = useSearchParams();
-  const token = (searchParams.get("token") ?? "").trim();
+  const token = (
+    searchParams.get("trackingcode") ??
+    searchParams.get("token") ??
+    ""
+  ).trim();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<TrackingData | null>(null);

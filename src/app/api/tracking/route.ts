@@ -13,7 +13,9 @@ function normalizeToken(value: string | null) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const token = normalizeToken(searchParams.get("token"));
+    const token = normalizeToken(
+      searchParams.get("trackingcode") ?? searchParams.get("token")
+    );
 
     if (!token) {
       return NextResponse.json(
