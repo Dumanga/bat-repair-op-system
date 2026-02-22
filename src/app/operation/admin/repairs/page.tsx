@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DeliveryDatePicker } from "@/components/delivery-date-picker";
 import ConfirmDialog from "@/components/confirm-dialog";
+import {
+  printRepairReceipt,
+  type RepairReceiptData,
+  type RepairReceiptLine,
+} from "@/lib/print/repair-receipt";
 
 const statusMeta: Record<
   string,
@@ -31,6 +36,7 @@ type RepairItem = {
   billNo: string;
   trackingToken?: string;
   intakeType: "WALK_IN" | "COURIER";
+  createdAt?: string;
   totalAmount: number;
   advanceAmount: number;
   estimatedDeliveryDate: string;
@@ -119,6 +125,62 @@ function formatMobile(value: string) {
     return `0${digits.slice(2)}`;
   }
   return value;
+}
+
+function toReceiptLines(repair: RepairItem): RepairReceiptLine[] {
+  if (repair.items && repair.items.length > 0) {
+    return repair.items.map((item, index) => {
+      const fallbackName = `Repair Item ${index + 1}`;
+      const itemName = item.repairType
+        ? `${item.repairType.code} - ${item.repairType.name}`
+        : fallbackName;
+      return {
+        name: itemName,
+        amount: item.price,
+      };
+    });
+  }
+
+  return [
+    {
+      name: repair.brand.name,
+      amount: repair.totalAmount,
+    },
+  ];
+}
+
+function buildReceiptPayload(repair: RepairItem): RepairReceiptData {
+  const lines = toReceiptLines(repair);
+  const subtotal = lines.reduce((sum, line) => sum + line.amount, 0);
+  const total = repair.totalAmount > 0 ? repair.totalAmount : subtotal;
+  const advance = repair.advanceAmount;
+  const balance = Math.max(0, total - advance);
+  return {
+    copyType: "REPAIR",
+    billNo: repair.billNo,
+    issuedAt: repair.createdAt ? new Date(repair.createdAt) : new Date(),
+    clientName: repair.client.name,
+    clientMobile: formatMobile(repair.client.mobile),
+    brandName: repair.brand.name,
+    storeName: repair.store.name,
+    intakeType: repair.intakeType,
+    status: repair.status,
+    lines,
+    subtotal,
+    total,
+    advance,
+    balance,
+  };
+}
+
+function buildReceiptPayloadWithCopyType(
+  repair: RepairItem,
+  copyType: "REPAIR" | "CUSTOMER"
+) {
+  return {
+    ...buildReceiptPayload(repair),
+    copyType,
+  };
 }
 
 export default function RepairsPage() {
@@ -1154,6 +1216,7 @@ export default function RepairsPage() {
       const payload = (await response.json()) as {
         success: boolean;
         message: string;
+        data?: { id: string } | null;
       };
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to delete repair type.");
@@ -1205,10 +1268,53 @@ export default function RepairsPage() {
       const payload = (await response.json()) as {
         success: boolean;
         message: string;
+        data?: { id: string } | null;
       };
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to create repair.");
       }
+      const autoPrintRepair: RepairItem = {
+        id: payload.data?.id ?? `tmp-${Date.now()}`,
+        billNo,
+        intakeType: intakeType === "Courier" ? "COURIER" : "WALK_IN",
+        createdAt: new Date().toISOString(),
+        totalAmount: computedTotalAmount,
+        advanceAmount: Number(advanceAmount || 0),
+        estimatedDeliveryDate: selectedDate,
+        description: description.trim() ? description.trim() : null,
+        status: "PENDING",
+        isPostponed: false,
+        client: {
+          id: selectedClient.id,
+          name: selectedClient.name,
+          mobile: selectedClient.mobile,
+        },
+        brand: {
+          id: selectedBrand.id,
+          name: selectedBrand.name,
+        },
+        store: {
+          id: selectedStore.id,
+          name: selectedStore.name,
+        },
+        items: repairItems
+          .filter((item) => item.repairTypeId && Number(item.price) > 0)
+          .map((item, index) => ({
+            id: item.id || `item-${index + 1}`,
+            repairTypeId: item.repairTypeId,
+            price: Number(item.price),
+            repairType: item.repairTypeName
+              ? {
+                  id: item.repairTypeId,
+                  code: item.repairTypeName.split(" - ")[0] || "",
+                  name:
+                    item.repairTypeName.split(" - ").slice(1).join(" - ") ||
+                    item.repairTypeName,
+                }
+              : null,
+          })),
+      };
+      printRepairReceipt(buildReceiptPayloadWithCopyType(autoPrintRepair, "CUSTOMER"));
       const smsFailed =
         payload.message.toLowerCase().includes("sms") &&
         payload.message.toLowerCase().includes("failed");
@@ -1280,6 +1386,7 @@ export default function RepairsPage() {
       const payload = (await response.json()) as {
         success: boolean;
         message: string;
+        data?: { id: string } | null;
       };
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || "Unable to update repair.");
@@ -1726,7 +1833,7 @@ export default function RepairsPage() {
             repairs.map((repair) => (
               <div
                 key={repair.id}
-                className="grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-4 text-sm lg:grid-cols-[1.4fr_1fr_1fr_1fr_0.7fr]"
+                className="grid gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 py-4 text-sm lg:grid-cols-[1.2fr_1fr_0.9fr_1fr_1fr_0.7fr]"
               >
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
@@ -1844,6 +1951,31 @@ export default function RepairsPage() {
                       disabled={repair.status === "DELIVERED"}
                     >
                       Edit/Reschedule
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  <p>Print</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                      onClick={() => {
+                        printRepairReceipt(
+                          buildReceiptPayloadWithCopyType(repair, "CUSTOMER")
+                        );
+                      }}
+                    >
+                      Customer Copy
+                    </button>
+                    <button
+                      className="h-9 rounded-full border border-[var(--stroke)] px-4 text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
+                      onClick={() => {
+                        printRepairReceipt(
+                          buildReceiptPayloadWithCopyType(repair, "REPAIR")
+                        );
+                      }}
+                    >
+                      Repair Copy
                     </button>
                   </div>
                 </div>

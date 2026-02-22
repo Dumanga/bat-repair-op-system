@@ -539,3 +539,22 @@
   - Repair edit/update responses
   - Status transition update responses
 - Toast messaging now surfaces backend SMS outcomes consistently for create/update/status flows (success vs SMS-failure/error states).
+
+## 2026-02-22 23:15
+- Added thermal-style repair bill printing support for Repairs module.
+- Implemented reusable print utility in `src/lib/print/repair-receipt.ts` with receipt layout tuned for 80mm paper (`@page size: 80mm auto`) and auto-print trigger.
+- Wired auto-print after successful repair creation (without changing DB/SMS backend flow).
+- Added manual `Print` action button in repairs listing rows so users can reprint closed bills.
+- Receipt includes bill metadata, client/store/intake/status, itemized repair lines, subtotal/total/advance/balance, and thank-you footer.
+
+## 2026-02-23 00:36
+- Adjusted repair receipt print layout width from 80mm-style to 72mm paper sizing.
+- Added B&W logo (`/assets/logo-dob-bw.png`) at receipt top and replaced brand header text with contact details (`doctorofbat@gmail.com`, `+94 77 718 4814`).
+- Split print flow into two copy types:
+  - `Repair Copy`: full line-item details with repair names and per-line amounts.
+  - `Customer Copy`: hides repair names and breakdown costs, shows a `Repairs` section with repair codes only + totals block.
+- Updated Repairs listing layout to include a dedicated `Print` column with two buttons:
+  - `Customer Copy`
+  - `Repair Copy`
+- Removed old single `Print` button from actions.
+- After successful repair creation, auto-print now opens `Customer Copy` (not repair copy).
