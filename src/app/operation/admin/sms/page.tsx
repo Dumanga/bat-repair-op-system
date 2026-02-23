@@ -208,7 +208,7 @@ export default function SmsPortalPage() {
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid content-start gap-4 self-start">
       <div className="h-fit rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

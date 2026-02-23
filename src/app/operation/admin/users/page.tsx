@@ -16,7 +16,7 @@ const accessOptions = [
   { key: "brands", label: "Bat Brands" },
   { key: "users", label: "Users" },
   { key: "sms", label: "SMS Portal" },
-  { key: "settings", label: "Settings" },
+  { key: "settings", label: "Reports" },
 ] as const;
 
 type AccessKey = (typeof accessOptions)[number]["key"];

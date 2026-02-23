@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 
 type CurrentUser = {
   displayName: string;
@@ -26,7 +26,7 @@ const navItems = [
   { label: "Users", href: "/operation/admin/users" },
   { label: "Stores", href: "/operation/admin/stores" },
   { label: "SMS Portal", href: "/operation/admin/sms" },
-  { label: "Settings", href: "/operation/admin/settings" },
+  { label: "Reports", href: "/operation/admin/settings" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -163,6 +163,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
+              <form action="/operation/logout" method="post" className="pt-1">
+                <button
+                  type="submit"
+                  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-rose-400 transition hover:bg-rose-500/10"
+                >
+                  <span>Logout</span>
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
             </nav>
           </div>
         ) : null}
@@ -195,6 +204,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 Online
               </div>
             </div>
+            <form action="/operation/logout" method="post" className="ml-auto">
+              <button
+                type="submit"
+                aria-label="Logout"
+                title="Logout"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/10 text-rose-400 transition hover:bg-rose-500/20"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </form>
           </div>
           <nav className="mt-6 grid gap-2 text-sm text-[var(--text-muted)]">
             {visibleNavItems.map((item) => {
