@@ -558,3 +558,10 @@
   - `Repair Copy`
 - Removed old single `Print` button from actions.
 - After successful repair creation, auto-print now opens `Customer Copy` (not repair copy).
+
+## 2026-02-23 01:05
+- Added optional `physicalBillNo` field to `Repair` model in Prisma schema (`String?`, nullable).
+- Extended `POST /api/repairs` create validation/persistence to accept `physicalBillNo` (trimmed, max 50 chars, saved as `null` when empty).
+- Extended `PATCH /api/repairs` update flow to accept/edit/clear `physicalBillNo` with the same validation and added `PHYSICAL_BILL_NO_UPDATED` audit event.
+- Updated Repairs UI form layout to include `Physical bill no (optional)` on the intake/store/estimated date row.
+- Wired `physicalBillNo` through create, edit, and view flows (state, payloads, edit snapshot comparison, and view-only rendering).

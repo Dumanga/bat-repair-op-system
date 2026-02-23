@@ -34,6 +34,7 @@ const statusMeta: Record<
 type RepairItem = {
   id: string;
   billNo: string;
+  physicalBillNo?: string | null;
   trackingToken?: string;
   intakeType: "WALK_IN" | "COURIER";
   createdAt?: string;
@@ -98,6 +99,7 @@ type RepairLineItem = {
 type EditSnapshot = {
   intakeType: string;
   selectedDate: string;
+  physicalBillNo: string;
   advanceAmount: string;
   description: string;
   itemsSignature: string;
@@ -158,6 +160,7 @@ function buildReceiptPayload(repair: RepairItem): RepairReceiptData {
   return {
     copyType: "REPAIR",
     billNo: repair.billNo,
+    physicalBillNo: repair.physicalBillNo ?? null,
     issuedAt: repair.createdAt ? new Date(repair.createdAt) : new Date(),
     clientName: repair.client.name,
     clientMobile: formatMobile(repair.client.mobile),
@@ -234,6 +237,7 @@ export default function RepairsPage() {
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(null);
   const [storeError, setStoreError] = useState<string | null>(null);
   const [totalAmount, setTotalAmount] = useState("");
+  const [physicalBillNo, setPhysicalBillNo] = useState("");
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [description, setDescription] = useState("");
   const [repairs, setRepairs] = useState<RepairItem[]>([]);
@@ -324,6 +328,7 @@ export default function RepairsPage() {
     const current = {
       intakeType: intakeType.trim(),
       selectedDate: selectedDate.trim(),
+      physicalBillNo: physicalBillNo.trim(),
       advanceAmount: String(Number(advanceAmount || 0)),
       description: description.trim(),
       itemsSignature: createItemsSignature(repairItems),
@@ -332,11 +337,12 @@ export default function RepairsPage() {
     return (
       current.intakeType === editSnapshot.intakeType &&
       current.selectedDate === editSnapshot.selectedDate &&
+      current.physicalBillNo === editSnapshot.physicalBillNo &&
       current.advanceAmount === editSnapshot.advanceAmount &&
       current.description === editSnapshot.description &&
       current.itemsSignature === editSnapshot.itemsSignature
     );
-  }, [editMode, editSnapshot, intakeType, selectedDate, advanceAmount, description, repairItems]);
+  }, [editMode, editSnapshot, intakeType, selectedDate, physicalBillNo, advanceAmount, description, repairItems]);
 
   const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
     setCalendarLoading(true);
@@ -1047,6 +1053,7 @@ export default function RepairsPage() {
     setStoreSearch("");
     setStoreOpen(false);
     setTotalAmount("");
+    setPhysicalBillNo("");
     setAdvanceAmount("");
     setSelectedDate("");
     setDescription("");
@@ -1257,6 +1264,7 @@ export default function RepairsPage() {
           brandId: selectedBrand.id,
           intakeType: intakeToApi(intakeType),
           storeId: selectedStore.id,
+          physicalBillNo: physicalBillNo.trim() || null,
           repairTypeId: primaryRepairTypeId,
           items: itemsPayload,
           totalAmount: computedTotalAmount,
@@ -1276,6 +1284,7 @@ export default function RepairsPage() {
       const autoPrintRepair: RepairItem = {
         id: payload.data?.id ?? `tmp-${Date.now()}`,
         billNo,
+        physicalBillNo: physicalBillNo.trim() || null,
         intakeType: intakeType === "Courier" ? "COURIER" : "WALK_IN",
         createdAt: new Date().toISOString(),
         totalAmount: computedTotalAmount,
@@ -1372,6 +1381,7 @@ export default function RepairsPage() {
           brandId: selectedBrand.id,
           intakeType: intakeToApi(intakeType),
           storeId: selectedStore.id,
+          physicalBillNo: physicalBillNo.trim() || null,
           repairTypeId: primaryRepairTypeId,
           items: itemsPayload,
           totalAmount: computedTotalAmount,
@@ -1933,6 +1943,7 @@ export default function RepairsPage() {
                           repair.intakeType === "COURIER" ? "Courier" : "Walk-in"
                         );
                         setTotalAmount(String(repair.totalAmount));
+                        setPhysicalBillNo(repair.physicalBillNo ?? "");
                         setAdvanceAmount(String(repair.advanceAmount));
                         setRepairItems(mappedItems);
                         setSelectedDate(dateValue);
@@ -1942,6 +1953,7 @@ export default function RepairsPage() {
                           intakeType:
                             repair.intakeType === "COURIER" ? "Courier" : "Walk-in",
                           selectedDate: dateValue,
+                          physicalBillNo: (repair.physicalBillNo ?? "").trim(),
                           advanceAmount: String(Number(repair.advanceAmount || 0)),
                           description: (repair.description ?? "").trim(),
                           itemsSignature: createItemsSignature(mappedItems),
@@ -2004,6 +2016,7 @@ export default function RepairsPage() {
                         repair.intakeType === "COURIER" ? "Courier" : "Walk-in"
                       );
                       setTotalAmount(String(repair.totalAmount));
+                      setPhysicalBillNo(repair.physicalBillNo ?? "");
                       setAdvanceAmount(String(repair.advanceAmount));
                       if (repair.items && repair.items.length > 0) {
                         setRepairItems(
@@ -2174,7 +2187,7 @@ export default function RepairsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-4">
                       <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
                         <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                           Intake type
@@ -2225,21 +2238,35 @@ export default function RepairsPage() {
                           {selectedStore?.name ?? "-"}
                         </p>
                       </div>
+                      <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Estimated delivery
+                        </p>
+                        <div className="mt-2">
+                          <DeliveryDatePicker
+                            value={selectedDate}
+                            onChange={setSelectedDate}
+                            countsByDate={deliveryCounts}
+                            disabled={viewMode}
+                            onMonthChange={handleCalendarMonthChange}
+                            loading={calendarLoading}
+                          />
+                        </div>
+                      </div>
+                      <label className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                        <span className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                          Physical bill no (optional)
+                        </span>
+                        <input
+                          className="mt-2 h-10 w-full rounded-xl border border-[var(--stroke)] bg-[var(--panel)] px-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+                          placeholder="Enter physical bill no"
+                          value={physicalBillNo}
+                          onChange={(event) => setPhysicalBillNo(event.target.value)}
+                          maxLength={50}
+                        />
+                      </label>
                     </div>
                   </div>
-                  <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                    <span>
-                      Estimated delivery date <span className="text-rose-400">*</span>
-                    </span>
-                    <DeliveryDatePicker
-                      value={selectedDate}
-                      onChange={setSelectedDate}
-                      countsByDate={deliveryCounts}
-                      disabled={viewMode}
-                      onMonthChange={handleCalendarMonthChange}
-                      loading={calendarLoading}
-                    />
-                  </label>
                   {calendarError ? (
                     <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-600">
                       {calendarError}
@@ -2459,7 +2486,7 @@ export default function RepairsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-4">
                     <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
                       <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                         Intake type
@@ -2482,6 +2509,14 @@ export default function RepairsPage() {
                         {selectedDate
                           ? new Date(selectedDate).toLocaleDateString()
                           : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] p-4 text-sm">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                        Physical bill no
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {physicalBillNo.trim() || "—"}
                       </p>
                     </div>
                   </div>
@@ -2788,7 +2823,7 @@ export default function RepairsPage() {
               ) : null}
               {!viewMode && !editMode ? (
                 <>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-4">
                   <div className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                     <span>
                       Intake type <span className="text-rose-400">*</span>
@@ -2919,6 +2954,16 @@ export default function RepairsPage() {
                       countsByDate={deliveryCounts}
                       onMonthChange={handleCalendarMonthChange}
                       loading={calendarLoading}
+                    />
+                  </label>
+                  <label className="grid gap-2 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <span>Physical bill no (optional)</span>
+                    <input
+                      className="h-11 rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)]"
+                      placeholder="Enter physical bill no"
+                      value={physicalBillNo}
+                      onChange={(event) => setPhysicalBillNo(event.target.value)}
+                      maxLength={50}
                     />
                   </label>
                 </div>

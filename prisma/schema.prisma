@@ -129,6 +129,7 @@ model Store {
 model Repair {
   id        String       @id @default(cuid())
   billNo    String       @unique
+  physicalBillNo String?
   clientId  String
   brandId   String
   intakeType RepairIntakeType

@@ -234,6 +234,7 @@ export async function POST(request: Request) {
       brandId?: unknown;
       intakeType?: unknown;
       storeId?: unknown;
+      physicalBillNo?: unknown;
       totalAmount?: unknown;
       advanceAmount?: unknown;
       estimatedDeliveryDate?: unknown;
@@ -247,6 +248,9 @@ export async function POST(request: Request) {
     const intakeRaw = typeof body.intakeType === "string" ? body.intakeType.trim() : "";
     const intakeType = intakeTypeMap[intakeRaw as keyof typeof intakeTypeMap];
     const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
+    const physicalBillNoRaw =
+      typeof body.physicalBillNo === "string" ? body.physicalBillNo.trim() : "";
+    const physicalBillNo = physicalBillNoRaw || null;
     const advanceAmount =
       typeof body.advanceAmount === "number" ? body.advanceAmount : 0;
     const description =
@@ -330,6 +334,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (physicalBillNo && physicalBillNo.length > 50) {
+      return NextResponse.json(
+        fail("Physical bill no must be 50 characters or fewer.", "VALIDATION_ERROR"),
+        { status: 400 }
+      );
+    }
 
     const dateMatch = estimatedDeliveryDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!dateMatch) {
@@ -395,6 +405,7 @@ export async function POST(request: Request) {
       const repair = await tx.repair.create({
         data: {
           billNo,
+          physicalBillNo,
           clientId,
           brandId,
           intakeType,
@@ -547,6 +558,7 @@ export async function PATCH(request: Request) {
       brandId?: unknown;
       intakeType?: unknown;
       storeId?: unknown;
+      physicalBillNo?: unknown;
       totalAmount?: unknown;
       advanceAmount?: unknown;
       description?: unknown;
@@ -562,6 +574,13 @@ export async function PATCH(request: Request) {
     const intakeRaw = typeof body.intakeType === "string" ? body.intakeType.trim() : "";
     const intakeType = intakeTypeMap[intakeRaw as keyof typeof intakeTypeMap];
     const storeId = typeof body.storeId === "string" ? body.storeId.trim() : "";
+    const hasPhysicalBillNoField = Object.prototype.hasOwnProperty.call(
+      body,
+      "physicalBillNo"
+    );
+    const physicalBillNoRaw =
+      typeof body.physicalBillNo === "string" ? body.physicalBillNo.trim() : "";
+    const physicalBillNo = physicalBillNoRaw || null;
     const advanceAmount =
       typeof body.advanceAmount === "number" ? body.advanceAmount : 0;
     const description =
@@ -656,6 +675,23 @@ export async function PATCH(request: Request) {
         oldValue: repair.description ?? "",
         newValue: description,
       });
+    }
+
+    if (hasPhysicalBillNoField) {
+      if (physicalBillNo && physicalBillNo.length > 50) {
+        return NextResponse.json(
+          fail("Physical bill no must be 50 characters or fewer.", "VALIDATION_ERROR"),
+          { status: 400 }
+        );
+      }
+      if ((repair.physicalBillNo ?? null) !== physicalBillNo) {
+        updateData.physicalBillNo = physicalBillNo;
+        audits.push({
+          eventType: "PHYSICAL_BILL_NO_UPDATED",
+          oldValue: repair.physicalBillNo ?? "",
+          newValue: physicalBillNo ?? "",
+        });
+      }
     }
 
     let parsedItems: Array<{ repairTypeId: string; price: number }> | null = null;
