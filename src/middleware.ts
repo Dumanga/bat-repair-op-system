@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 const adminPrefix = "/admin";
 const authLoginPath = "/auth/login";
 const authLogoutPath = "/auth/logout";
+const legacyReportsPath = "/operation/admin/settings";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -26,9 +27,20 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (pathname === legacyReportsPath) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/operation/admin/reports";
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/auth/login", "/auth/logout"],
+  matcher: [
+    "/admin/:path*",
+    "/auth/login",
+    "/auth/logout",
+    "/operation/admin/settings",
+  ],
 };

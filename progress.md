@@ -565,3 +565,35 @@
 - Extended `PATCH /api/repairs` update flow to accept/edit/clear `physicalBillNo` with the same validation and added `PHYSICAL_BILL_NO_UPDATED` audit event.
 - Updated Repairs UI form layout to include `Physical bill no (optional)` on the intake/store/estimated date row.
 - Wired `physicalBillNo` through create, edit, and view flows (state, payloads, edit snapshot comparison, and view-only rendering).
+
+## 2026-02-23 01:42
+- Renamed `Settings` navigation label to `Reports` in the operation portal sidebar while keeping the same route (`/operation/admin/settings`).
+- Removed account/session card from the Reports page and moved logout to a sidebar profile-row icon button (plus mobile-nav logout action).
+- Updated Users access label from `Settings` to `Reports` in UI text (permission key unchanged).
+- Fixed oversized vertical gaps caused by grid stretch behavior in:
+  - `src/app/operation/admin/settings/page.tsx`
+  - `src/app/operation/admin/sms/page.tsx`
+  by applying content-start/self-start layout so title/list cards keep natural height.
+
+## 2026-02-23 02:10
+- Implemented real date-range income reporting with new API endpoint `GET /api/reports/income`.
+- Added strict report validation:
+  - `from` and `to` dates are required.
+  - format must be `YYYY-MM-DD`.
+  - `from` can be equal to `to` (same-day report supported).
+  - `from` cannot be later than `to`.
+- Added status-aware collection logic in report rows:
+  - `DELIVERED` repairs treated as fully received (`receivedAmount = totalAmount`).
+  - non-delivered repairs use advance as received amount.
+  - balance is computed per row as outstanding.
+- Wired Reports UI to call the API, disable Generate until both dates are selected, show loading/error/empty states, and render real totals.
+- Added printable A4 income report utility in `src/lib/print/income-report.ts` with B&W logo (`/assets/logo-dob-bw.png`) and a `Print Report` action after generation.
+
+## 2026-02-23 02:24
+- Safely migrated Reports page route from `/operation/admin/settings` to `/operation/admin/reports`:
+  - Added new page file at `src/app/operation/admin/reports/page.tsx`.
+  - Updated sidebar nav target and access path checks in `src/components/admin-shell.tsx`.
+- Preserved backward compatibility for old links/bookmarks:
+  - Added redirect page at `src/app/operation/admin/settings/page.tsx` to `/operation/admin/reports`.
+  - Added middleware redirect for `/operation/admin/settings` to `/operation/admin/reports`.
+- Kept role/access model unchanged (`accessSettings` permission key still used), so existing RBAC behavior remains intact.

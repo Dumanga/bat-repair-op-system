@@ -26,7 +26,7 @@ const navItems = [
   { label: "Users", href: "/operation/admin/users" },
   { label: "Stores", href: "/operation/admin/stores" },
   { label: "SMS Portal", href: "/operation/admin/sms" },
-  { label: "Reports", href: "/operation/admin/settings" },
+  { label: "Reports", href: "/operation/admin/reports" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -54,7 +54,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             return true;
           case "/operation/admin/sms":
             return currentUser.accessSms;
-          case "/operation/admin/settings":
+          case "/operation/admin/reports":
             return currentUser.accessSettings;
           default:
             return true;
