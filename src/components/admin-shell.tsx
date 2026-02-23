@@ -14,6 +14,7 @@ type CurrentUser = {
   accessClients: boolean;
   accessBrands: boolean;
   accessUsers: boolean;
+  accessStores: boolean;
   accessSms: boolean;
   accessSettings: boolean;
 };
@@ -51,7 +52,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           case "/operation/admin/users":
             return currentUser.accessUsers;
           case "/operation/admin/stores":
-            return true;
+            return currentUser.accessStores;
           case "/operation/admin/sms":
             return currentUser.accessSms;
           case "/operation/admin/reports":

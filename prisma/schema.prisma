@@ -61,6 +61,7 @@ model User {
   accessClients  Boolean @default(false)
   accessBrands   Boolean @default(false)
   accessUsers    Boolean @default(false)
+  accessStores   Boolean @default(false)
   accessSms      Boolean @default(false)
   accessSettings Boolean @default(false)
   storeId     String?

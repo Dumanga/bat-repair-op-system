@@ -10,6 +10,7 @@ const allowedAccess = [
   "clients",
   "brands",
   "users",
+  "stores",
   "sms",
   "settings",
 ] as const;
@@ -94,6 +95,7 @@ export async function GET(request: Request) {
           accessClients: true,
           accessBrands: true,
           accessUsers: true,
+          accessStores: true,
           accessSms: true,
           accessSettings: true,
         },
@@ -220,6 +222,7 @@ export async function POST(request: Request) {
         accessClients: access.includes("clients"),
         accessBrands: access.includes("brands"),
         accessUsers: access.includes("users"),
+        accessStores: access.includes("stores"),
         accessSms: access.includes("sms"),
         accessSettings: access.includes("settings"),
       },
@@ -352,6 +355,7 @@ export async function PATCH(request: Request) {
       accessClients: access.includes("clients"),
       accessBrands: access.includes("brands"),
       accessUsers: access.includes("users"),
+      accessStores: access.includes("stores"),
       accessSms: access.includes("sms"),
       accessSettings: access.includes("settings"),
     };

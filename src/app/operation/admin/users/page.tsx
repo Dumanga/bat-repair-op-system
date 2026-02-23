@@ -15,6 +15,7 @@ const accessOptions = [
   { key: "clients", label: "Clients" },
   { key: "brands", label: "Bat Brands" },
   { key: "users", label: "Users" },
+  { key: "stores", label: "Stores" },
   { key: "sms", label: "SMS Portal" },
   { key: "settings", label: "Reports" },
 ] as const;
@@ -39,6 +40,7 @@ type User = {
   accessClients: boolean;
   accessBrands: boolean;
   accessUsers: boolean;
+  accessStores: boolean;
   accessSms: boolean;
   accessSettings: boolean;
 };
@@ -224,6 +226,7 @@ export default function UsersPage() {
     if (user.accessClients) list.push("clients");
     if (user.accessBrands) list.push("brands");
     if (user.accessUsers) list.push("users");
+    if (user.accessStores) list.push("stores");
     if (user.accessSms) list.push("sms");
     if (user.accessSettings) list.push("settings");
     return list;

@@ -597,3 +597,19 @@
   - Added redirect page at `src/app/operation/admin/settings/page.tsx` to `/operation/admin/reports`.
   - Added middleware redirect for `/operation/admin/settings` to `/operation/admin/reports`.
 - Kept role/access model unchanged (`accessSettings` permission key still used), so existing RBAC behavior remains intact.
+
+## 2026-02-23 02:45
+- Added dedicated Stores access permission (`accessStores`) to the `User` model in Prisma schema.
+- Updated Super Admin seed defaults to include `accessStores: true`.
+- Extended Users API access handling to support `stores` permission:
+  - Included `stores` in allowed access keys.
+  - Read/write `accessStores` in create/update payload mapping.
+  - Returned `accessStores` in user list responses.
+- Extended auth session payload (`/api/auth/me`) to return `accessStores`.
+- Updated Users management UI:
+  - Added `Stores` to access permission options in create/edit user form.
+  - Included `accessStores` in access-list mapping for edit mode.
+- Updated sidebar RBAC enforcement in `AdminShell`:
+  - `/operation/admin/stores` visibility now depends on `currentUser.accessStores` for non-super-admin users (instead of always visible).
+  - Super Admin still retains full access to all modules.
+- Ran `npx prisma db push` and regenerated Prisma Client successfully.

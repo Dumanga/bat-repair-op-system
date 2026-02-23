@@ -70,6 +70,7 @@ export async function GET(request: Request) {
           accessClients: session.user.accessClients,
           accessBrands: session.user.accessBrands,
           accessUsers: session.user.accessUsers,
+          accessStores: session.user.accessStores,
           accessSms: session.user.accessSms,
           accessSettings: session.user.accessSettings,
         },
