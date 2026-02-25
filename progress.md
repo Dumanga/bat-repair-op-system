@@ -613,3 +613,42 @@
   - `/operation/admin/stores` visibility now depends on `currentUser.accessStores` for non-super-admin users (instead of always visible).
   - Super Admin still retains full access to all modules.
 - Ran `npx prisma db push` and regenerated Prisma Client successfully.
+
+## 2026-02-23 03:12
+- Rebuilt operation dashboard (`src/app/operation/admin/page.tsx`) from static mock widgets to live, delivery-focused UI.
+- Replaced revenue KPI with a delivery operations KPI (`Due Today`) and switched KPI cards to real data from pending repairs.
+- Added a delivery calendar panel with per-day count badges (sourced from `/api/repairs/calendar`), month navigation, and month-count caching.
+- Implemented date selection modes on dashboard:
+  - `Single date` (today auto-selected by default)
+  - `Date range` (start/end selection, inclusive filtering)
+- Added pending-delivery listing tied to current calendar selection:
+  - Loads all non-delivered repairs (no pagination in dashboard list view).
+  - Filters rows by selected single date or selected date range.
+  - Shows bill no, client, bat, status, and estimated delivery.
+- Added refresh action and loading/error/empty states for both calendar counts and delivery listing.
+
+## 2026-02-23 03:18
+- Adjusted dashboard split layout so pending-delivery listing appears on the left and delivery calendar panel appears on the right on desktop (`xl`) screens.
+
+## 2026-02-23 03:26
+- Fixed dashboard responsiveness/overflow issues on laptop and mobile:
+  - Prevented page-level horizontal overflow in dashboard container.
+  - Added `min-w-0` safeguards to dashboard grid panels.
+  - Removed hard table min-width forcing layout overflow.
+  - Added mobile-first delivery cards (`md:hidden`) for selected pending deliveries.
+  - Kept desktop table view (`md:block`) for larger screens.
+
+## 2026-02-23 03:34
+- Enhanced dashboard pending-delivery listing details:
+  - Added customer mobile number to delivery rows/cards.
+  - Added `View` action button for each listed repair (mobile and desktop rows), routing to Repairs module for detailed handling.
+
+## 2026-02-23 03:42
+- Changed dashboard `View` action behavior to open an in-page details popup for the selected repair instead of navigating away.
+- Added full repair detail modal content on dashboard:
+  - bill/status/client/mobile/brand/store/intake/estimated delivery
+  - physical bill no
+  - repair line items with prices
+  - total/advance/balance summary
+  - description
+- Added modal close controls and body-scroll lock while popup is open.
