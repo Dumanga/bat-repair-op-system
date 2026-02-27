@@ -664,3 +664,21 @@
   - Sends real reminder SMS on confirmation.
   - Persists "Reminder Sent" indication after successful first send (including after reload).
   - Shows reminder send errors without breaking listing/filter flows.
+
+## 2026-02-23 04:08
+- Updated SMS templates to match finalized draft wording across lifecycle messages:
+  - Repair created (pending)
+  - Repair started (processing)
+  - Repair completed (ready for pickup)
+  - Repair delivered (thank-you)
+  - Repair updated
+  - Repair rescheduled
+  - Pickup reminder (2 days before)
+- Kept tracking URL structure unchanged using base URL + `/tracking?token=...`.
+- Added dedicated reschedule SMS selection in repair update flow:
+  - When estimated delivery date changes (without status transition), SMS type/message now uses `REPAIR_RESCHEDULED`.
+  - When date does not change but details change, SMS remains `REPAIR_UPDATED`.
+- Updated SMS reminder API to require and include real tracking link in pickup reminder messages by extracting existing tracking token from prior SMS history.
+
+## 2026-02-23 04:14
+- Removed the `Repair types` / repair items box from customer tracking UI (`/tracking`) while keeping the rest of the tracking summary unchanged.

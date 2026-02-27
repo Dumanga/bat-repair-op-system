@@ -381,30 +381,6 @@ function TrackingPageContent() {
                   Intake: {data.intakeType === "COURIER" ? "Courier" : "Walk-in"}
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  Repair types
-                </p>
-                <div className="mt-3 grid gap-2">
-                  {data.items.length === 0 ? (
-                    <p className="text-xs text-white/50">No repair items listed.</p>
-                  ) : (
-                    data.items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm"
-                      >
-                        <span>
-                          {item.repairType.code} - {item.repairType.name}
-                        </span>
-                        <span className="text-xs text-white/70">
-                          LKR {item.price.toLocaleString()}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-white/60">

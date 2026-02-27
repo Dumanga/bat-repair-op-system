@@ -7,6 +7,7 @@ import { fail, ok } from "@/lib/api/response";
 import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
 import {
   buildRepairCreatedMessage,
+  buildRepairRescheduledMessage,
   buildRepairStatusMessage,
   buildRepairUpdatedMessage,
   buildTrackingUrl,
@@ -844,6 +845,9 @@ export async function PATCH(request: Request) {
     }
 
     const statusChangedTo = (updateData.status as RepairStatus | undefined) ?? null;
+    const isRescheduled =
+      statusChangedTo === null &&
+      Object.prototype.hasOwnProperty.call(updateData, "estimatedDeliveryDate");
 
     await prisma.$transaction(async (tx) => {
       await tx.repair.update({
@@ -942,10 +946,15 @@ export async function PATCH(request: Request) {
             nextStatus: statusSmsNext,
             trackingUrl: trackingUrl ?? undefined,
           })
-        : buildRepairUpdatedMessage({
-            billNo: repair.billNo,
-            trackingUrl: trackingUrl ?? "",
-          });
+        : isRescheduled
+          ? buildRepairRescheduledMessage({
+              billNo: repair.billNo,
+              trackingUrl: trackingUrl ?? "",
+            })
+          : buildRepairUpdatedMessage({
+              billNo: repair.billNo,
+              trackingUrl: trackingUrl ?? "",
+            });
 
     const smsType =
       statusChangedTo === "PROCESSING"
@@ -954,7 +963,9 @@ export async function PATCH(request: Request) {
           ? "REPAIR_COMPLETED"
           : statusChangedTo === "DELIVERED"
             ? "REPAIR_DELIVERED"
-            : "REPAIR_UPDATED";
+            : isRescheduled
+              ? "REPAIR_RESCHEDULED"
+              : "REPAIR_UPDATED";
 
     const smsOutbox = await prisma.smsOutbox.create({
       data: {

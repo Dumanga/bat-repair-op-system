@@ -7,7 +7,10 @@ import {
   getSessionCookieName,
   hashSessionToken,
 } from "@/lib/auth/session";
-import { buildDeliveryReminderMessage } from "@/lib/sms/messages";
+import {
+  buildDeliveryReminderMessage,
+  buildTrackingUrl,
+} from "@/lib/sms/messages";
 import { sendTextLkSms } from "@/lib/sms/textlk";
 
 const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -28,6 +31,34 @@ function parseDateOnly(value: string) {
   const endExclusive = new Date(start);
   endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
   return { start, endExclusive };
+}
+
+function extractTrackingTokenFromSmsMessage(message: string | null | undefined) {
+  if (!message) {
+    return null;
+  }
+  const explicitToken = message.match(/Tracking token:\s*([A-Za-z0-9]+)/i);
+  if (explicitToken?.[1]) {
+    return explicitToken[1];
+  }
+  const shortUrlToken = message.match(/\/t\/([A-Za-z0-9]+)/i);
+  if (shortUrlToken?.[1]) {
+    return shortUrlToken[1];
+  }
+  const queryToken = message.match(/[?&]token=([A-Za-z0-9]+)/i);
+  if (queryToken?.[1]) {
+    return queryToken[1];
+  }
+  const legacyQueryToken = message.match(/[?&]trackingcode=([A-Za-z0-9]+)/i);
+  return legacyQueryToken?.[1] ?? null;
+}
+
+function getBaseUrlForTracking(request: Request) {
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (configured) {
+    return configured;
+  }
+  return new URL(request.url).origin;
 }
 
 async function requireUser(request: Request) {
@@ -168,9 +199,39 @@ export async function POST(request: Request) {
       );
     }
 
+    const recentSmsMessages = await prisma.smsOutbox.findMany({
+      where: {
+        repairId,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { message: true },
+    });
+
+    const trackingToken =
+      recentSmsMessages
+        .map((entry) => extractTrackingTokenFromSmsMessage(entry.message))
+        .find((token) => Boolean(token)) ?? null;
+
+    if (!trackingToken) {
+      return NextResponse.json(
+        fail(
+          "Reminder SMS skipped due to missing tracking token.",
+          "TRACKING_TOKEN_MISSING"
+        ),
+        { status: 400 }
+      );
+    }
+
+    const trackingUrl = buildTrackingUrl(
+      getBaseUrlForTracking(request),
+      trackingToken
+    );
+
     const message = buildDeliveryReminderMessage({
       billNo: repair.billNo,
       dueDate: repair.estimatedDeliveryDate,
+      trackingUrl,
     });
 
     const outbox = await prisma.smsOutbox.create({
