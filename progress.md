@@ -652,3 +652,15 @@
   - total/advance/balance summary
   - description
 - Added modal close controls and body-scroll lock while popup is open.
+
+## 2026-02-23 03:56
+- Implemented real SMS Portal reminder sending flow (backend + UI integration).
+- Added new endpoint `GET/POST /api/sms/reminders`:
+  - `GET` returns already-sent reminder repair ids for a target date.
+  - `POST` sends a reminder SMS for a selected repair using Text.lk wrapper, persists outbox status, and blocks duplicate sends after first successful reminder.
+- Added delivery reminder SMS message builder in `src/lib/sms/messages.ts` with 170-char-safe formatting.
+- SMS Portal UI now:
+  - Fetches sent-status from DB (not local-only state) for two-day scheduled deliveries.
+  - Sends real reminder SMS on confirmation.
+  - Persists "Reminder Sent" indication after successful first send (including after reload).
+  - Shows reminder send errors without breaking listing/filter flows.

@@ -24,6 +24,23 @@ type RepairApiPayload = {
   };
 };
 
+type ReminderStatusPayload = {
+  success: boolean;
+  message: string;
+  data?: {
+    sentRepairIds: string[];
+  } | null;
+};
+
+type ReminderSendPayload = {
+  success: boolean;
+  message: string;
+  data?: {
+    repairId: string;
+    alreadySent: boolean;
+  } | null;
+};
+
 type FilterKey = "ALL" | "WALK_IN" | "COURIER";
 
 const filterChips: Array<{ key: FilterKey; label: string }> = [
@@ -86,9 +103,11 @@ export default function SmsPortalPage() {
   const [rows, setRows] = useState<RepairRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reminderError, setReminderError] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [pendingReminder, setPendingReminder] = useState<RepairRow | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
 
   const today = useMemo(() => new Date(), []);
   const todayLabel = useMemo(() => formatDateLabel(today), [today]);
@@ -106,6 +125,7 @@ export default function SmsPortalPage() {
     async function loadRows() {
       setLoading(true);
       setLoadError(null);
+      setReminderError(null);
 
       try {
         const firstResponse = await fetch(
@@ -148,17 +168,21 @@ export default function SmsPortalPage() {
           return dateKey === targetDateKey;
         });
 
+        const statusResponse = await fetch(
+          `/api/sms/reminders?targetDate=${encodeURIComponent(targetDateKey)}`
+        );
+        const statusPayload = (await statusResponse.json()) as ReminderStatusPayload;
+        const sentRepairIds =
+          statusResponse.ok && statusPayload.success && statusPayload.data
+            ? statusPayload.data.sentRepairIds
+            : [];
+
         if (!cancelled) {
           setRows(dueRows);
-          setSentIds((prev) => {
-            const next = new Set<string>();
-            prev.forEach((id) => {
-              if (dueRows.some((row) => row.id === id)) {
-                next.add(id);
-              }
-            });
-            return next;
-          });
+          const validIds = new Set(dueRows.map((row) => row.id));
+          setSentIds(
+            new Set(sentRepairIds.filter((id) => validIds.has(id)))
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -192,19 +216,45 @@ export default function SmsPortalPage() {
   }
 
   function closeReminderConfirm() {
+    if (sendingReminder) {
+      return;
+    }
     setConfirmOpen(false);
     setPendingReminder(null);
   }
 
-  function markReminderSent() {
-    if (pendingReminder) {
+  async function markReminderSent() {
+    if (!pendingReminder) {
+      return;
+    }
+    setSendingReminder(true);
+    setReminderError(null);
+    try {
+      const response = await fetch("/api/sms/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repairId: pendingReminder.id }),
+      });
+      const payload = (await response.json()) as ReminderSendPayload;
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.message || "Unable to send reminder.");
+      }
       setSentIds((prev) => {
         const next = new Set(prev);
         next.add(pendingReminder.id);
         return next;
       });
+      setConfirmOpen(false);
+      setPendingReminder(null);
+    } catch (error) {
+      setReminderError(
+        error instanceof Error ? error.message : "Unable to send reminder."
+      );
+      setConfirmOpen(false);
+      setPendingReminder(null);
+    } finally {
+      setSendingReminder(false);
     }
-    closeReminderConfirm();
   }
 
   return (
@@ -233,6 +283,11 @@ export default function SmsPortalPage() {
       </div>
 
       <div className="rounded-3xl border border-[var(--stroke)] bg-[var(--panel)] p-4 sm:p-6">
+        {reminderError ? (
+          <div className="mb-4 rounded-2xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+            {reminderError}
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           {filterChips.map((chip) => {
             const isActive = chip.key === filter;
@@ -401,8 +456,11 @@ export default function SmsPortalPage() {
             : "Confirm reminder send."
         }
         confirmLabel="Send Reminder"
+        loading={sendingReminder}
         onCancel={closeReminderConfirm}
-        onConfirm={markReminderSent}
+        onConfirm={() => {
+          void markReminderSent();
+        }}
       />
     </div>
   );

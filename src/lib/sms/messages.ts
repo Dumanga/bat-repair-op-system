@@ -9,6 +9,11 @@ type BuildRepairStatusMessageParams = {
   trackingUrl?: string;
 };
 
+type BuildDeliveryReminderMessageParams = {
+  billNo: string;
+  dueDate: Date;
+};
+
 export function buildTrackingUrl(baseUrl: string, trackingToken: string) {
   const normalizedBase = baseUrl.replace(/\/+$/, "");
   return `${normalizedBase}/tracking?token=${encodeURIComponent(trackingToken)}`;
@@ -87,5 +92,20 @@ export function buildRepairStatusMessage({
 
   return pickBoundedMessage([
     `DOB: Repair ${billNo} delivered successfully. Thank you.`,
+  ]);
+}
+
+export function buildDeliveryReminderMessage({
+  billNo,
+  dueDate,
+}: BuildDeliveryReminderMessageParams) {
+  const dueLabel = dueDate.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+  return pickBoundedMessage([
+    `DOB Reminder: Repair ${billNo} is due on ${dueLabel}. Please arrange pickup.`,
+    `DOB Reminder: ${billNo} due ${dueLabel}. Please arrange pickup.`,
   ]);
 }
