@@ -248,6 +248,12 @@ export default function RepairsPage() {
   const [repairsError, setRepairsError] = useState<string | null>(null);
   const [repairsSearch, setRepairsSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ACTIVE");
+  const [kpiCounts, setKpiCounts] = useState({
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    delivered: 0,
+  });
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
@@ -406,9 +412,49 @@ export default function RepairsPage() {
     }
   }, [repairsPage, repairsPageSize, repairsSearch, statusFilter]);
 
+  const loadKpiCounts = useCallback(async () => {
+    async function fetchStatusCount(
+      status: "PENDING" | "PROCESSING" | "REPAIR_COMPLETED" | "DELIVERED"
+    ) {
+      const params = new URLSearchParams({
+        page: "1",
+        pageSize: "1",
+        status,
+      });
+      const response = await fetch(`/api/repairs?${params.toString()}`);
+      const payload = (await response.json()) as {
+        success: boolean;
+        data: RepairResponse | null;
+      };
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error("Unable to load KPI counts.");
+      }
+      return payload.data.total;
+    }
+
+    try {
+      const [pending, processing, completed, delivered] = await Promise.all([
+        fetchStatusCount("PENDING"),
+        fetchStatusCount("PROCESSING"),
+        fetchStatusCount("REPAIR_COMPLETED"),
+        fetchStatusCount("DELIVERED"),
+      ]);
+
+      setKpiCounts({
+        pending,
+        processing,
+        completed,
+        delivered,
+      });
+    } catch {
+      // Keep existing KPI values if this background refresh fails.
+    }
+  }, []);
+
   useEffect(() => {
     loadRepairs();
-  }, [loadRepairs]);
+    loadKpiCounts();
+  }, [loadRepairs, loadKpiCounts]);
 
   useEffect(() => {
     setTotalAmount(String(computedTotalAmount));
@@ -1731,7 +1777,7 @@ export default function RepairsPage() {
             Pending
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {repairs.filter((repair) => repair.status === "PENDING").length}
+            {kpiCounts.pending}
           </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Intake awaiting start.
@@ -1742,7 +1788,7 @@ export default function RepairsPage() {
             Processing
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {repairs.filter((repair) => repair.status === "PROCESSING").length}
+            {kpiCounts.processing}
           </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Active bench work.
@@ -1753,7 +1799,7 @@ export default function RepairsPage() {
             Completed
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {repairs.filter((repair) => repair.status === "REPAIR_COMPLETED").length}
+            {kpiCounts.completed}
           </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Ready for delivery.
@@ -1764,7 +1810,7 @@ export default function RepairsPage() {
             Delivered
           </p>
           <p className="mt-3 text-3xl font-semibold">
-            {repairs.filter((repair) => repair.status === "DELIVERED").length}
+            {kpiCounts.delivered}
           </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
             Hidden from main list.

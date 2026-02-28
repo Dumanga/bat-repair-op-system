@@ -682,3 +682,13 @@
 
 ## 2026-02-23 04:14
 - Removed the `Repair types` / repair items box from customer tracking UI (`/tracking`) while keeping the rest of the tracking summary unchanged.
+
+## 2026-02-23 04:22
+- Fixed Repairs KPI cards to be independent from listing filters/pagination.
+- Root cause: KPI values were computed from current page/filtered `repairs` list, causing counts to change when switching status tabs.
+- Added separate global KPI count loader in `src/app/operation/admin/repairs/page.tsx` that fetches totals per status (`PENDING`, `PROCESSING`, `REPAIR_COMPLETED`, `DELIVERED`) via API.
+- Updated KPI cards to use dedicated `kpiCounts` state, so list filters now affect only table/list data and not KPI totals.
+
+## 2026-02-23 04:29
+- Replaced hardcoded Repairs nav badge count in `AdminShell` with live pending count.
+- Sidebar/mobile `Repairs` badge now shows real `PENDING` repair total fetched from `/api/repairs?status=PENDING`.

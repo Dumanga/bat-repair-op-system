@@ -35,6 +35,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [pendingRepairsCount, setPendingRepairsCount] = useState<number>(0);
   const visibleNavItems = currentUser
     ? navItems.filter((item) => {
         if (currentUser.role === "SUPER_ADMIN") {
@@ -84,6 +85,42 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     }
 
     loadUser();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPendingRepairsCount() {
+      try {
+        const params = new URLSearchParams({
+          page: "1",
+          pageSize: "1",
+          status: "PENDING",
+        });
+        const response = await fetch(`/api/repairs?${params.toString()}`);
+        const payload = (await response.json()) as {
+          success: boolean;
+          data: { total: number } | null;
+        };
+        if (!active) {
+          return;
+        }
+        if (response.ok && payload.success && payload.data) {
+          setPendingRepairsCount(payload.data.total);
+        } else {
+          setPendingRepairsCount(0);
+        }
+      } catch {
+        if (active) {
+          setPendingRepairsCount(0);
+        }
+      }
+    }
+
+    loadPendingRepairsCount();
     return () => {
       active = false;
     };
@@ -158,7 +195,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                     <span>{item.label}</span>
                     {item.label === "Repairs" ? (
                       <span className="rounded-full bg-[var(--panel-muted)] px-2 py-1 text-[10px] text-[var(--text-muted)]">
-                        38
+                        {pendingRepairsCount}
                       </span>
                     ) : null}
                   </Link>
@@ -232,7 +269,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <span>{item.label}</span>
                   {item.label === "Repairs" ? (
                     <span className="rounded-full bg-[var(--panel-muted)] px-2 py-1 text-[10px] text-[var(--text-muted)]">
-                      38
+                      {pendingRepairsCount}
                     </span>
                   ) : null}
                 </Link>
