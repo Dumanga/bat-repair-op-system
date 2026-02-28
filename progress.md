@@ -692,3 +692,21 @@
 ## 2026-02-23 04:29
 - Replaced hardcoded Repairs nav badge count in `AdminShell` with live pending count.
 - Sidebar/mobile `Repairs` badge now shows real `PENDING` repair total fetched from `/api/repairs?status=PENDING`.
+
+## 2026-02-23 04:34
+- Replaced sidebar placeholder text (`Next audit sync in 3 hrs`) with real-time current date/time display in `AdminShell`.
+- Added lightweight 1-second client interval to keep sidebar clock updated live.
+
+## 2026-02-23 04:37
+- Simplified sidebar clock card to show only date and time values (removed the extra "Current date & time" title label).
+
+## 2026-02-23 04:40
+- Updated Reports listing table header text from `Advance received` to `Amount received`.
+
+## 2026-02-23 04:44
+- Updated Repair Copy print template to include description (when available) below the amounts block.
+- Kept Customer Copy unchanged (no description section added there).
+
+## 2026-03-01 00:40
+- Changed base route / from operation-login redirect to a public dark landing page with centered Doctor of Bat logo (src/app/page.tsx).
+- Removed the real-time date/time card from the operational left sidebar in AdminShell (src/components/admin-shell.tsx).
