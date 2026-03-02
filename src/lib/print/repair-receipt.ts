@@ -7,6 +7,7 @@ export type RepairReceiptData = {
   copyType: "REPAIR" | "CUSTOMER";
   billNo: string;
   physicalBillNo?: string | null;
+  description?: string | null;
   issuedAt: Date;
   clientName: string;
   clientMobile: string;
@@ -66,6 +67,15 @@ function buildReceiptHtml(data: RepairReceiptData) {
   const physicalBillMeta = physicalBillNo
     ? `<div class="meta">Physical Bill No: ${escapeHtml(physicalBillNo)}</div>`
     : "";
+  const description = data.description?.trim() ?? "";
+  const repairDescriptionSection =
+    data.copyType === "REPAIR" && description
+      ? `
+        <div class="rule"></div>
+        <div class="meta"><strong>Description</strong></div>
+        <div class="meta">${escapeHtml(description)}</div>
+      `
+      : "";
   const lineRows = data.lines
     .map(
       (line, index) => `
@@ -187,6 +197,7 @@ function buildReceiptHtml(data: RepairReceiptData) {
         <div class="sum-row total"><span>Total</span><span>${money(data.total)}</span></div>
         <div class="sum-row"><span>Advance</span><span>${money(data.advance)}</span></div>
         <div class="sum-row"><span>Balance</span><span>${money(data.balance)}</span></div>
+        ${repairDescriptionSection}
 
         <div class="rule"></div>
         <div class="thanks">THANK YOU</div>

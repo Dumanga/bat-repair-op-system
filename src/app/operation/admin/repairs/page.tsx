@@ -161,6 +161,7 @@ function buildReceiptPayload(repair: RepairItem): RepairReceiptData {
     copyType: "REPAIR",
     billNo: repair.billNo,
     physicalBillNo: repair.physicalBillNo ?? null,
+    description: repair.description ?? null,
     issuedAt: repair.createdAt ? new Date(repair.createdAt) : new Date(),
     clientName: repair.client.name,
     clientMobile: formatMobile(repair.client.mobile),

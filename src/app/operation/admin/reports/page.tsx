@@ -190,7 +190,7 @@ export default function SettingsPage() {
                   <th className="px-4 py-3 text-left">Bill no</th>
                   <th className="px-4 py-3 text-left">Client name</th>
                   <th className="px-4 py-3 text-right">Total amount</th>
-                  <th className="px-4 py-3 text-right">Advance received</th>
+                  <th className="px-4 py-3 text-right">Amount received</th>
                   <th className="px-4 py-3 text-right">Balance</th>
                 </tr>
               </thead>
