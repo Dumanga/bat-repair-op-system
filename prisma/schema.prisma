@@ -49,42 +49,45 @@ enum SmsStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  displayName  String
-  passwordHash String
-  role         UserRole
-  system       UserSystem @default(OPERATION)
-  profileImageId Int    @default(1)
-  accessDashboard Boolean @default(false)
-  accessRepairs  Boolean @default(false)
-  accessClients  Boolean @default(false)
-  accessBrands   Boolean @default(false)
-  accessUsers    Boolean @default(false)
-  accessStores   Boolean @default(false)
-  accessSms      Boolean @default(false)
-  accessSettings Boolean @default(false)
-  storeId     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String     @id @default(cuid())
+  username        String     @unique
+  displayName     String
+  passwordHash    String
+  role            UserRole
+  system          UserSystem @default(OPERATION)
+  profileImageId  Int        @default(1)
+  accessDashboard Boolean    @default(false)
+  accessRepairs   Boolean    @default(false)
+  accessClients   Boolean    @default(false)
+  accessBrands    Boolean    @default(false)
+  accessUsers     Boolean    @default(false)
+  accessStores    Boolean    @default(false)
+  accessSms       Boolean    @default(false)
+  accessSettings  Boolean    @default(false)
+  storeId         String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  sessions     Session[]
-  store        Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  sessions       Session[]
+  store          Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
   repairsCreated Repair[]
-  repairAudits  RepairAudit[]
+  repairAudits   RepairAudit[]
 
   @@index([system])
   @@index([storeId])
+  @@map("user")
 }
 
 model Session {
-  id         String   @id @default(cuid())
-  tokenHash  String   @unique
-  userId     String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
 }
 
 model Brand {
@@ -93,7 +96,9 @@ model Brand {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  repairs   Repair[]
+  repairs Repair[]
+
+  @@map("brand")
 }
 
 model Client {
@@ -104,9 +109,10 @@ model Client {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  repairs   Repair[]
+  repairs Repair[]
 
   @@index([name])
+  @@map("client")
 }
 
 model Store {
@@ -119,47 +125,49 @@ model Store {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  users     User[]
-  repairs   Repair[]
+  users   User[]
+  repairs Repair[]
 
   @@index([name])
   @@index([city])
   @@index([status])
+  @@map("store")
 }
 
 model Repair {
-  id        String       @id @default(cuid())
-  billNo    String       @unique
-  physicalBillNo String?
-  clientId  String
-  brandId   String
-  intakeType RepairIntakeType
-  repairTypeId String?
-  storeId   String
-  totalAmount Int
-  advanceAmount Int
+  id                    String           @id @default(cuid())
+  billNo                String           @unique
+  physicalBillNo        String?
+  clientId              String
+  brandId               String
+  intakeType            RepairIntakeType
+  repairTypeId          String?
+  storeId               String
+  totalAmount           Int
+  advanceAmount         Int
   estimatedDeliveryDate DateTime
-  status    RepairStatus @default(PENDING)
-  isPostponed Boolean    @default(false)
-  description String?
-  trackingTokenHash String
-  createdById String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status                RepairStatus     @default(PENDING)
+  isPostponed           Boolean          @default(false)
+  description           String?
+  trackingTokenHash     String
+  createdById           String
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  brand    Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
-  repairType RepairType? @relation(fields: [repairTypeId], references: [id], onDelete: SetNull)
-  store    Store  @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  createdBy User  @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  smsOutbox SmsOutbox[]
-  audits    RepairAudit[]
-  items     RepairItem[]
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  brand      Brand         @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  repairType RepairType?   @relation(fields: [repairTypeId], references: [id], onDelete: SetNull)
+  store      Store         @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  createdBy  User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  smsOutbox  SmsOutbox[]
+  audits     RepairAudit[]
+  items      RepairItem[]
 
   @@index([storeId])
   @@index([status])
   @@index([estimatedDeliveryDate])
   @@index([repairTypeId])
+  @@map("repair")
 }
 
 model RepairItem {
@@ -174,6 +182,7 @@ model RepairItem {
 
   @@index([repairId])
   @@index([repairTypeId])
+  @@map("repairitem")
 }
 
 model RepairType {
@@ -184,49 +193,54 @@ model RepairType {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  repairs   Repair[]
-  items     RepairItem[]
+  repairs Repair[]
+  items   RepairItem[]
 
   @@index([name])
   @@index([isActive])
+  @@map("repairtype")
 }
 
 model RepairBillSequence {
   id         Int      @id @default(1)
   nextNumber Int      @default(1)
   updatedAt  DateTime @updatedAt
+
+  @@map("repairbillsequence")
 }
 
 model SmsOutbox {
-  id        String    @id @default(cuid())
-  repairId  String
-  recipient String
-  message   String
-  type      String
-  status    SmsStatus @default(PENDING)
-  scheduledFor DateTime?
-  sentAt    DateTime?
+  id               String    @id @default(cuid())
+  repairId         String
+  recipient        String
+  message          String
+  type             String
+  status           SmsStatus @default(PENDING)
+  scheduledFor     DateTime?
+  sentAt           DateTime?
   providerResponse String?
-  createdAt DateTime @default(now())
+  createdAt        DateTime  @default(now())
 
-  repair    Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  repair Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
 
   @@index([repairId])
   @@index([status])
+  @@map("smsoutbox")
 }
 
 model RepairAudit {
-  id        String   @id @default(cuid())
-  repairId  String
-  eventType String
-  oldValue  String?
-  newValue  String?
+  id            String   @id @default(cuid())
+  repairId      String
+  eventType     String
+  oldValue      String?
+  newValue      String?
   performedById String
-  createdAt DateTime @default(now())
+  createdAt     DateTime @default(now())
 
-  repair    Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
-  performedBy User @relation(fields: [performedById], references: [id], onDelete: Restrict)
+  repair      Repair @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  performedBy User   @relation(fields: [performedById], references: [id], onDelete: Restrict)
 
   @@index([repairId])
   @@index([eventType])
+  @@map("repairaudit")
 }

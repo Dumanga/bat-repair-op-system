@@ -723,3 +723,7 @@
 ## 2026-03-02 15:30
 - Updated website tab icon to custom brand icon (public/assets/icon.png) by adding app router icon file at src/app/icon.png.
 - Removed default Next.js favicon file (src/app/favicon.ico) so browser uses the custom icon instead.
+
+## 2026-03-02 16:03
+- Added explicit Prisma model-to-table mappings (@@map) for all core models in prisma/schema.prisma using the actual existing physical table names (lowercase singular).
+- Verified current DB naming with prisma db pull --print, then validated schema and build to ensure no behavior regressions before production.
