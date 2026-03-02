@@ -68,7 +68,7 @@ function PlayerMarquee({
 }) {
   const loopItems = [...items, ...items];
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-black/10 bg-[#fffdf8] p-4 sm:p-6">
+    <div className="relative mx-auto max-w-full overflow-hidden rounded-3xl border border-black/10 bg-[#fffdf8] p-4 sm:p-6">
       <div className={`flex w-max gap-4 ${speedClass}`}>
         {loopItems.map((src, index) => (
           <div
@@ -97,7 +97,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(44,42,44,0.08),transparent_38%)]" />
       </div>
 
-      <header className="sticky top-0 z-40 mx-auto w-[92%] max-w-6xl rounded-full border border-black/10 bg-white/75 px-4 py-3 backdrop-blur-md sm:mt-4 sm:px-6">
+      <header className="sticky top-0 z-40 mx-auto mt-2 w-[92%] max-w-6xl rounded-full border border-black/10 bg-white/75 px-4 py-3 backdrop-blur-md sm:mt-2 sm:px-6">
         <div className="flex items-center justify-between gap-4">
           <Link href="#home" className="flex items-center gap-2">
             <Image
@@ -109,6 +109,12 @@ export default function Home() {
             />
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-black/70 md:flex">
+            <Link href="#partners" className="transition hover:text-[#ff7101]">
+              Partners
+            </Link>
+            <Link href="#clients" className="transition hover:text-[#ff7101]">
+              Clients
+            </Link>
             <Link href="#services" className="transition hover:text-[#ff7101]">
               Services
             </Link>
@@ -130,7 +136,7 @@ export default function Home() {
 
       <section
         id="home"
-        className="mx-auto grid w-[92%] max-w-6xl gap-10 pb-16 pt-20 lg:grid-cols-[1.1fr_0.9fr]"
+        className="mx-auto grid w-[92%] max-w-6xl gap-10 pb-16 pt-10 lg:grid-cols-[1.1fr_0.9fr] lg:pt-12"
       >
         <div className="animate-rise space-y-6">
           <p className="inline-flex rounded-full border border-[#ff7101]/30 bg-[#ff7101]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#8b3f00]">
@@ -174,7 +180,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto w-[92%] max-w-6xl py-10">
+      <section id="partners" className="mx-auto w-[92%] max-w-6xl py-10">
         <div className="mb-5 flex items-end justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-black/50">
@@ -189,7 +195,10 @@ export default function Home() {
         />
       </section>
 
-      <section className="mx-auto w-[92%] max-w-6xl py-10">
+      <section
+        id="clients"
+        className="mx-auto w-[92%] max-w-6xl overflow-x-hidden py-10"
+      >
         <div className="mb-6">
           <p className="text-xs uppercase tracking-[0.2em] text-black/50">
             Our Clients

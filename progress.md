@@ -741,3 +741,8 @@
 ## 2026-03-03 00:33
 - Updated homepage hero right panel: removed dispatch/update detail cards and replaced the space with a large centered Doctor of Bat logo inside the white box.
 - Moved dispatch/delivery/performance detail cards into a dedicated Dispatch and Delivery section placed before the Contact section.
+
+## 2026-03-03 00:58
+- Refined homepage header and hero spacing: reduced top gap and added small mobile top margin for header.
+- Added Partners and Clients links in header navigation and mapped them to their section anchors.
+- Fixed clients carousel visual overflow by constraining the section/marquee containers (overflow-x-hidden, max-w-full, centered wrapper) so rows stay within centered content bounds.
