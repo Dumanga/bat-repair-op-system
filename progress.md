@@ -710,3 +710,7 @@
 ## 2026-03-01 00:40
 - Changed base route / from operation-login redirect to a public dark landing page with centered Doctor of Bat logo (src/app/page.tsx).
 - Removed the real-time date/time card from the operational left sidebar in AdminShell (src/components/admin-shell.tsx).
+
+## 2026-03-02 14:37
+- Added server-side auth guard in src/app/operation/admin/layout.tsx to block direct URL access without valid OPERATION session.
+- /operation/admin* now redirects to /operation/login when session cookie is missing/expired/invalid or portal access is not allowed.
