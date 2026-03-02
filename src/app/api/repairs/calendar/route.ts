@@ -33,24 +33,25 @@ export async function GET(request: Request) {
     const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const end = new Date(Date.UTC(year, month, 1, 0, 0, 0));
 
-    const rows = await prisma.$queryRaw<
-      Array<{ day: string; count: bigint }>
-    >`
-      SELECT DATE_FORMAT(estimatedDeliveryDate, '%Y-%m-%d') AS day, COUNT(*) AS count
-      FROM Repair
-      WHERE estimatedDeliveryDate >= ${start}
-        AND estimatedDeliveryDate < ${end}
-        AND status <> 'DELIVERED'
-      GROUP BY DATE_FORMAT(estimatedDeliveryDate, '%Y-%m-%d')
-    `;
-
     const counts: Record<string, number> = {};
-    for (const row of rows) {
-      const day = row.day;
-      const count = Number(row.count);
-      if (day) {
-        counts[day] = count;
-      }
+    const repairs = await prisma.repair.findMany({
+      where: {
+        estimatedDeliveryDate: {
+          gte: start,
+          lt: end,
+        },
+        status: {
+          not: "DELIVERED",
+        },
+      },
+      select: {
+        estimatedDeliveryDate: true,
+      },
+    });
+
+    for (const row of repairs) {
+      const day = row.estimatedDeliveryDate.toISOString().slice(0, 10);
+      counts[day] = (counts[day] ?? 0) + 1;
     }
 
     return NextResponse.json(

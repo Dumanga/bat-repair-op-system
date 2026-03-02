@@ -727,3 +727,7 @@
 ## 2026-03-02 16:03
 - Added explicit Prisma model-to-table mappings (@@map) for all core models in prisma/schema.prisma using the actual existing physical table names (lowercase singular).
 - Verified current DB naming with prisma db pull --print, then validated schema and build to ensure no behavior regressions before production.
+
+## 2026-03-02 17:36
+- Fixed production 500 on GET /api/repairs/calendar by removing hardcoded raw SQL table reference (FROM Repair).
+- Replaced calendar aggregation with Prisma ORM query (prisma.repair.findMany) and in-memory day grouping, eliminating table-name/case-sensitivity issues across environments.
