@@ -161,34 +161,15 @@ export default function Home() {
         </div>
 
         <div className="animate-rise rounded-3xl border border-black/10 bg-white p-6 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.45)]">
-          <div className="grid gap-4 text-sm text-black/70">
-            <div className="rounded-2xl border border-black/10 bg-[#fffaf4] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-black/50">
-                Global Dispatch
-              </p>
-              <p className="mt-2">
-                Send your bat from anywhere in the world. Please contact us before
-                courier dispatch. Shipping cost is managed by the customer.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-black/10 bg-[#fffaf4] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-black/50">
-                Delivery + Updates
-              </p>
-              <p className="mt-2">
-                Once work is completed, collect at workshop or request delivery.
-                You receive SMS status updates and tracking link access.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-black/10 bg-[#fffaf4] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-black/50">
-                Performance First
-              </p>
-              <p className="mt-2">
-                Proven methods for oil seasoning, face repair, handle work,
-                balancing, and long-term bat durability.
-              </p>
-            </div>
+          <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-black/10 bg-[#fffaf4] p-6 sm:min-h-[380px]">
+            <Image
+              src="/assets/logo-dob.png"
+              alt="Doctor of Bat logo"
+              width={560}
+              height={220}
+              className="h-auto w-full max-w-[520px] object-contain"
+              priority
+            />
           </div>
         </div>
       </section>
@@ -308,6 +289,46 @@ export default function Home() {
             this field. I promise to continue enhancing your cricket bat&apos;s
             strength with each preparation.&quot;
           </blockquote>
+        </div>
+      </section>
+
+      <section className="mx-auto w-[92%] max-w-6xl py-10">
+        <div className="mb-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-black/50">
+            Dispatch and Delivery
+          </p>
+          <h2 className="mt-2 text-2xl sm:text-3xl">
+            Global Courier Flow and Live Repair Updates
+          </h2>
+        </div>
+        <div className="grid gap-4 text-sm text-black/70 md:grid-cols-3">
+          <div className="rounded-2xl border border-black/10 bg-white p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-black/50">
+              Global Dispatch
+            </p>
+            <p className="mt-2">
+              Send your bat from anywhere in the world. Please contact us before
+              courier dispatch. Shipping cost is managed by the customer.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-black/10 bg-white p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-black/50">
+              Delivery + Updates
+            </p>
+            <p className="mt-2">
+              Once work is completed, collect at workshop or request delivery.
+              You receive SMS status updates and tracking link access.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-black/10 bg-white p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-black/50">
+              Performance First
+            </p>
+            <p className="mt-2">
+              Proven methods for oil seasoning, face repair, handle work,
+              balancing, and long-term bat durability.
+            </p>
+          </div>
         </div>
       </section>
 

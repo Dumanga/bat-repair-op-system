@@ -737,3 +737,7 @@
 - Added homepage marquee animations and fixed layout issues by removing top gap and preventing page-level horizontal overflow for laptop/mobile responsiveness.
 - Updated About section to use real founder image (public/assets/founder.png) and full founder message text.
 - Updated footer copyright text to Dozen Digital Pvt Ltd.
+
+## 2026-03-03 00:33
+- Updated homepage hero right panel: removed dispatch/update detail cards and replaced the space with a large centered Doctor of Bat logo inside the white box.
+- Moved dispatch/delivery/performance detail cards into a dedicated Dispatch and Delivery section placed before the Contact section.
