@@ -17,6 +17,11 @@ const bodyFont = Manrope({
 export const metadata: Metadata = {
   title: "Bat Repair Ops",
   description: "Operations management for cricket bat repair workflows.",
+  icons: {
+    icon: "/assets/icon.png",
+    shortcut: "/assets/icon.png",
+    apple: "/assets/icon.png",
+  },
 };
 
 export default function RootLayout({

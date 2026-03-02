@@ -719,3 +719,7 @@
 - Fixed logout redirect domain handling for both operation and accounting portals to avoid localhost redirects in production.
 - Added shared getAppBaseUrl(request) in src/lib/auth/session.ts (priority: NEXT_PUBLIC_BASE_URL -> forwarded host/proto -> request origin).
 - Updated logout routes to redirect using canonical app base URL + portal login path.
+
+## 2026-03-02 15:30
+- Updated website tab icon to custom brand icon (public/assets/icon.png) by adding app router icon file at src/app/icon.png.
+- Removed default Next.js favicon file (src/app/favicon.ico) so browser uses the custom icon instead.
