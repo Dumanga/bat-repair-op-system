@@ -731,3 +731,9 @@
 ## 2026-03-02 17:36
 - Fixed production 500 on GET /api/repairs/calendar by removing hardcoded raw SQL table reference (FROM Repair).
 - Replaced calendar aggregation with Prisma ORM query (prisma.repair.findMany) and in-memory day grouping, eliminating table-name/case-sensitivity issues across environments.
+
+## 2026-03-02 23:27
+- Replaced root homepage with a full static marketing website (light theme) including modern header, hero, partner carousel, foreign/local player showcases, services grid, about section, contact section with map, and footer.
+- Added homepage marquee animations and fixed layout issues by removing top gap and preventing page-level horizontal overflow for laptop/mobile responsiveness.
+- Updated About section to use real founder image (public/assets/founder.png) and full founder message text.
+- Updated footer copyright text to Dozen Digital Pvt Ltd.
