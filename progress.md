@@ -714,3 +714,8 @@
 ## 2026-03-02 14:37
 - Added server-side auth guard in src/app/operation/admin/layout.tsx to block direct URL access without valid OPERATION session.
 - /operation/admin* now redirects to /operation/login when session cookie is missing/expired/invalid or portal access is not allowed.
+
+## 2026-03-02 15:23
+- Fixed logout redirect domain handling for both operation and accounting portals to avoid localhost redirects in production.
+- Added shared getAppBaseUrl(request) in src/lib/auth/session.ts (priority: NEXT_PUBLIC_BASE_URL -> forwarded host/proto -> request origin).
+- Updated logout routes to redirect using canonical app base URL + portal login path.

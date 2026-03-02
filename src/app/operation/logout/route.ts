@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
+import {
+  getAppBaseUrl,
+  getSessionCookieName,
+  hashSessionToken,
+} from "@/lib/auth/session";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -23,5 +27,6 @@ export async function POST(request: Request) {
     expires: new Date(0),
   });
 
-  return NextResponse.redirect(new URL("/operation/login", request.url));
+  const redirectUrl = new URL("/operation/login", getAppBaseUrl(request));
+  return NextResponse.redirect(redirectUrl);
 }

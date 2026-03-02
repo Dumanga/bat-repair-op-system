@@ -62,3 +62,33 @@ export function resolvePortal(request: Request, explicitPortal?: unknown): Porta
 export function getSessionCookieName(portal: Portal) {
   return portal === "ACCOUNTING" ? "dob_acc_session" : "dob_op_session";
 }
+
+function normalizeBaseUrl(value: string) {
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
+export function getAppBaseUrl(request: Request) {
+  const envBase = normalizeBaseUrl(process.env.NEXT_PUBLIC_BASE_URL ?? "");
+  if (envBase) {
+    return envBase;
+  }
+
+  const forwardedHost = request.headers.get("x-forwarded-host")?.trim();
+  if (forwardedHost) {
+    const forwardedProto =
+      request.headers.get("x-forwarded-proto")?.trim() || "https";
+    const fromForwarded = normalizeBaseUrl(
+      `${forwardedProto}://${forwardedHost}`
+    );
+    if (fromForwarded) {
+      return fromForwarded;
+    }
+  }
+
+  return new URL(request.url).origin;
+}
