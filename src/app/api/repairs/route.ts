@@ -579,11 +579,17 @@ export async function PATCH(request: Request) {
       body,
       "physicalBillNo"
     );
+    const hasAdvanceAmountField = Object.prototype.hasOwnProperty.call(
+      body,
+      "advanceAmount"
+    );
     const physicalBillNoRaw =
       typeof body.physicalBillNo === "string" ? body.physicalBillNo.trim() : "";
     const physicalBillNo = physicalBillNoRaw || null;
     const advanceAmount =
-      typeof body.advanceAmount === "number" ? body.advanceAmount : 0;
+      hasAdvanceAmountField && typeof body.advanceAmount === "number"
+        ? body.advanceAmount
+        : null;
     const description =
       typeof body.description === "string" && body.description.trim()
         ? body.description.trim()
@@ -660,8 +666,12 @@ export async function PATCH(request: Request) {
       });
     }
 
-    if (Number.isFinite(advanceAmount)) {
-      if (advanceAmount < 0) {
+    if (hasAdvanceAmountField) {
+      if (
+        advanceAmount === null ||
+        !Number.isFinite(advanceAmount) ||
+        advanceAmount < 0
+      ) {
         return NextResponse.json(
           fail("Advance amount must be zero or more.", "VALIDATION_ERROR"),
           { status: 400 }
@@ -749,7 +759,8 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      if (advanceAmount > totalAmount) {
+      const effectiveAdvanceAmount = advanceAmount ?? repair.advanceAmount;
+      if (effectiveAdvanceAmount > totalAmount) {
         return NextResponse.json(
           fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
           { status: 400 }
@@ -764,7 +775,7 @@ export async function PATCH(request: Request) {
           newValue: String(totalAmount),
         });
       }
-      if (advanceAmount !== repair.advanceAmount) {
+      if (hasAdvanceAmountField && advanceAmount !== repair.advanceAmount) {
         updateData.advanceAmount = advanceAmount;
         audits.push({
           eventType: "ADVANCE_UPDATED",
@@ -777,7 +788,7 @@ export async function PATCH(request: Request) {
       } else if (parsedItems[0]?.repairTypeId) {
         updateData.repairTypeId = parsedItems[0].repairTypeId;
       }
-    } else if (advanceAmount !== repair.advanceAmount) {
+    } else if (hasAdvanceAmountField && advanceAmount !== repair.advanceAmount) {
       updateData.advanceAmount = advanceAmount;
       audits.push({
         eventType: "ADVANCE_UPDATED",

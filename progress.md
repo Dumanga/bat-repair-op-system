@@ -746,3 +746,7 @@
 - Refined homepage header and hero spacing: reduced top gap and added small mobile top margin for header.
 - Added Partners and Clients links in header navigation and mapped them to their section anchors.
 - Fixed clients carousel visual overflow by constraining the section/marquee containers (overflow-x-hidden, max-w-full, centered wrapper) so rows stay within centered content bounds.
+
+## 2026-03-04 14:05
+- Fixed critical Repairs PATCH bug where status-only updates could reset dvanceAmount to   when dvanceAmount was omitted from payload.
+- PATCH now updates/validates advance only when the field is explicitly provided, preserving existing advance values during status transitions and other partial updates.
