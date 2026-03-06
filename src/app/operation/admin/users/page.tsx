@@ -365,9 +365,6 @@ export default function UsersPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-            Export List
-          </button>
           <button
             className="h-10 rounded-full bg-[var(--accent)] px-4 text-xs font-semibold text-black transition hover:opacity-90"
             onClick={() => {

@@ -6,9 +6,28 @@ async function main() {
   const bcrypt = bcryptModule.default ?? bcryptModule;
   const prisma = new PrismaClient();
 
-  const username = "SuperAdmin@DOB";
+  const username = "superadmin@dob.com";
+  const legacyUsername = "SuperAdmin@DOB";
   const password = "DOB@2026";
   const passwordHash = await bcrypt.hash(password, 12);
+
+  const [existingNew, existingLegacy] = await Promise.all([
+    prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    }),
+    prisma.user.findUnique({
+      where: { username: legacyUsername },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!existingNew && existingLegacy) {
+    await prisma.user.update({
+      where: { id: existingLegacy.id },
+      data: { username },
+    });
+  }
 
   await prisma.user.upsert({
     where: { username },

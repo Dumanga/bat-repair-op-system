@@ -1591,9 +1591,6 @@ export default function RepairsPage() {
             </button>
           ) : (
             <>
-              <button className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]">
-                Export
-              </button>
               <button
                 className="h-10 rounded-full border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] transition hover:bg-[var(--panel)]"
                 onClick={() => {

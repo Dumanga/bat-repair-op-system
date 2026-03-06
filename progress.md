@@ -780,3 +780,15 @@
 ## 2026-03-06 10:05
 - Updated Repairs listing card details in `src/app/operation/admin/repairs/page.tsx` to show `Created:` date in the same summary column as Total/Advance/ETA.
 - Confirmed data source already exists in DB (`Repair.createdAt`) and is available in API response, so no schema/API changes were needed.
+
+## 2026-03-06 10:25
+- Removed header `Export`/`Export List` action buttons from operational modules per request:
+  - `src/app/operation/admin/clients/page.tsx`
+  - `src/app/operation/admin/repairs/page.tsx`
+  - `src/app/operation/admin/brands/page.tsx`
+  - `src/app/operation/admin/users/page.tsx`
+
+## 2026-03-06 10:30
+- Updated super admin seed username in `prisma/seed.js` from `SuperAdmin@DOB` to `superadmin@dob.com`.
+- Added seed migration logic to automatically rename legacy `SuperAdmin@DOB` user to `superadmin@dob.com` when applicable.
+- Applied DB cleanup manually: removed legacy `SuperAdmin@DOB` account and verified only `superadmin@dob.com` remains.
