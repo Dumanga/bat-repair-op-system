@@ -119,13 +119,12 @@ export default function LoginPage() {
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
+                    name="rememberMe"
+                    value="true"
                     className="h-4 w-4 rounded border-white/30 bg-transparent text-emerald-400"
                   />
                   Keep me signed in
                 </label>
-                <span className="cursor-pointer text-white/70 underline decoration-white/30 underline-offset-4">
-                  Forgot password?
-                </span>
               </div>
               <button
                 type="submit"

@@ -2,6 +2,7 @@ export type LoginRequestDTO = {
   identifier: string;
   password: string;
   portal?: "OPERATION" | "ACCOUNTING";
+  rememberMe?: boolean | "on" | "true" | "false" | "1" | "0";
 };
 
 export type LoginResponseDTO = {

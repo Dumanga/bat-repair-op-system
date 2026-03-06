@@ -799,3 +799,14 @@
 - Updated `src/app/operation/admin/reports/page.tsx` to render a new `Store` column in the report table and include store data when printing.
 - Updated `src/lib/print/income-report.ts` print template/types to show `Store` column in A4 output and adjusted empty/total row column spans accordingly.
 - Verified with `npm run lint` and `npm run build` (no new errors).
+
+## 2026-03-06 11:05
+- Updated session policy in auth login flow:
+  - Default session expiry changed from 7 days to 24 hours.
+  - Added Remember Me support so checked login sessions expire in 7 days.
+- Extended login request DTO with `rememberMe` and wired operation login form checkbox to submit it.
+- Added expired-session cleanup utility at `prisma/cleanup-expired-sessions.js` and npm script `db:cleanup:sessions`.
+- Verified cleanup command execution and removed expired DB session records.
+
+## 2026-03-06 11:10
+- Removed `Forgot password?` text/link from operation login page UI (`src/app/operation/login/page.tsx`).

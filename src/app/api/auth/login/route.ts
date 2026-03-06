@@ -8,7 +8,26 @@ import { prisma } from "@/lib/db";
 import { createSessionToken, getSessionCookieName, hashSessionToken, resolvePortal } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
-const allowedKeys = new Set<keyof LoginRequestDTO>(["identifier", "password", "portal"]);
+const ONE_DAY_MS = 1000 * 60 * 60 * 24;
+const SEVEN_DAYS_MS = ONE_DAY_MS * 7;
+
+const allowedKeys = new Set<keyof LoginRequestDTO>([
+  "identifier",
+  "password",
+  "portal",
+  "rememberMe",
+]);
+
+function normalizeRememberMe(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "on" || normalized === "true" || normalized === "1";
+  }
+  return false;
+}
 
 async function parseBody(request: Request): Promise<Partial<LoginRequestDTO>> {
   const contentType = request.headers.get("content-type") ?? "";
@@ -64,6 +83,7 @@ export async function POST(request: Request) {
       typeof data.identifier === "string" ? data.identifier.trim() : "";
     const password =
       typeof data.password === "string" ? data.password.trim() : "";
+    const rememberMe = normalizeRememberMe(data.rememberMe);
 
     if (!identifier || !password) {
       return NextResponse.json(
@@ -108,7 +128,9 @@ export async function POST(request: Request) {
 
     const rawToken = createSessionToken();
     const tokenHash = hashSessionToken(rawToken);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+    const expiresAt = new Date(
+      Date.now() + (rememberMe ? SEVEN_DAYS_MS : ONE_DAY_MS)
+    );
 
     await prisma.session.create({
       data: {
