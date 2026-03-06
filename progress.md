@@ -776,3 +776,7 @@
   - Red invalid input state
   - Clear messages for short length vs wrong starting digit
 - Verified with `npm run lint` and `npm run build`: both pass (only pre-existing non-blocking warnings remain).
+
+## 2026-03-06 10:05
+- Updated Repairs listing card details in `src/app/operation/admin/repairs/page.tsx` to show `Created:` date in the same summary column as Total/Advance/ETA.
+- Confirmed data source already exists in DB (`Repair.createdAt`) and is available in API response, so no schema/API changes were needed.

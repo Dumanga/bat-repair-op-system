@@ -1913,6 +1913,12 @@ export default function RepairsPage() {
                   <p className="mt-1">
                     ETA: {new Date(repair.estimatedDeliveryDate).toLocaleDateString()}
                   </p>
+                  <p className="mt-1">
+                    Created:{" "}
+                    {repair.createdAt
+                      ? new Date(repair.createdAt).toLocaleDateString()
+                      : "-"}
+                  </p>
                 </div>
                 <div className="text-xs text-[var(--text-muted)]">
                   <p>Status</p>
