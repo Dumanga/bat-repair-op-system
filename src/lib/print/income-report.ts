@@ -1,5 +1,6 @@
 export type IncomeReportPrintRow = {
   billNo: string;
+  storeName: string;
   clientName: string;
   totalAmount: number;
   receivedAmount: number;
@@ -60,7 +61,7 @@ function buildHtml(data: IncomeReportPrintData) {
     data.rows.length === 0
       ? `
         <tr>
-          <td colspan="5" class="empty">No repairs found for the selected date range.</td>
+          <td colspan="6" class="empty">No repairs found for the selected date range.</td>
         </tr>
       `
       : data.rows
@@ -68,6 +69,7 @@ function buildHtml(data: IncomeReportPrintData) {
             (row) => `
         <tr>
           <td>${escapeHtml(row.billNo)}</td>
+          <td>${escapeHtml(row.storeName)}</td>
           <td>${escapeHtml(row.clientName)}</td>
           <td class="num">${money(row.totalAmount)}</td>
           <td class="num">${money(row.receivedAmount)}</td>
@@ -213,6 +215,7 @@ function buildHtml(data: IncomeReportPrintData) {
           <thead>
             <tr>
               <th>Bill No</th>
+              <th>Store</th>
               <th>Client Name</th>
               <th class="num">Total Amount</th>
               <th class="num">Received Amount</th>
@@ -224,7 +227,7 @@ function buildHtml(data: IncomeReportPrintData) {
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="2">Overall</td>
+              <td colspan="3">Overall</td>
               <td class="num">${money(data.totals.totalAmount)}</td>
               <td class="num">${money(data.totals.totalReceived)}</td>
               <td class="num">${money(data.totals.totalBalance)}</td>

@@ -792,3 +792,10 @@
 - Updated super admin seed username in `prisma/seed.js` from `SuperAdmin@DOB` to `superadmin@dob.com`.
 - Added seed migration logic to automatically rename legacy `SuperAdmin@DOB` user to `superadmin@dob.com` when applicable.
 - Applied DB cleanup manually: removed legacy `SuperAdmin@DOB` account and verified only `superadmin@dob.com` remains.
+
+## 2026-03-06 10:50
+- Enhanced Income Reporting to include store-level visibility per repair bill across API, UI table, and printed report.
+- Updated `GET /api/reports/income` to return `storeName` for each report row.
+- Updated `src/app/operation/admin/reports/page.tsx` to render a new `Store` column in the report table and include store data when printing.
+- Updated `src/lib/print/income-report.ts` print template/types to show `Store` column in A4 output and adjusted empty/total row column spans accordingly.
+- Verified with `npm run lint` and `npm run build` (no new errors).

@@ -6,6 +6,7 @@ import { printIncomeReport } from "@/lib/print/income-report";
 type IncomeReportRow = {
   id: string;
   billNo: string;
+  storeName: string;
   clientName: string;
   status: "PENDING" | "PROCESSING" | "REPAIR_COMPLETED" | "DELIVERED";
   totalAmount: number;
@@ -97,6 +98,7 @@ export default function SettingsPage() {
       generatedAt: new Date(),
       rows: reportData.rows.map((row) => ({
         billNo: row.billNo,
+        storeName: row.storeName,
         clientName: row.clientName,
         totalAmount: row.totalAmount,
         receivedAmount: row.receivedAmount,
@@ -188,6 +190,7 @@ export default function SettingsPage() {
               <thead className="bg-[var(--panel-muted)] text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                 <tr>
                   <th className="px-4 py-3 text-left">Bill no</th>
+                  <th className="px-4 py-3 text-left">Store</th>
                   <th className="px-4 py-3 text-left">Client name</th>
                   <th className="px-4 py-3 text-right">Total amount</th>
                   <th className="px-4 py-3 text-right">Amount received</th>
@@ -199,7 +202,7 @@ export default function SettingsPage() {
                   <tr>
                     <td
                       className="px-4 py-6 text-sm text-[var(--text-muted)]"
-                      colSpan={5}
+                      colSpan={6}
                     >
                       No repairs found for the selected date range.
                     </td>
@@ -208,6 +211,7 @@ export default function SettingsPage() {
                   reportData.rows.map((row) => (
                     <tr key={row.id} className="border-t border-[var(--stroke)]">
                       <td className="px-4 py-3 font-semibold">{row.billNo}</td>
+                      <td className="px-4 py-3">{row.storeName}</td>
                       <td className="px-4 py-3">{row.clientName}</td>
                       <td className="px-4 py-3 text-right">
                         LKR {row.totalAmount.toLocaleString()}
@@ -227,6 +231,7 @@ export default function SettingsPage() {
                   <td className="px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                     Overall
                   </td>
+                  <td className="px-4 py-3" />
                   <td className="px-4 py-3" />
                   <td className="px-4 py-3 text-right font-semibold">
                     LKR {totals.totalAmount.toLocaleString()}

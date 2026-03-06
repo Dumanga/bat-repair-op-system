@@ -87,6 +87,11 @@ export async function GET(request: Request) {
         status: true,
         totalAmount: true,
         advanceAmount: true,
+        store: {
+          select: {
+            name: true,
+          },
+        },
         client: {
           select: {
             name: true,
@@ -104,6 +109,7 @@ export async function GET(request: Request) {
       return {
         id: repair.id,
         billNo: repair.billNo,
+        storeName: repair.store.name,
         clientName: repair.client.name,
         status: repair.status,
         totalAmount: repair.totalAmount,
