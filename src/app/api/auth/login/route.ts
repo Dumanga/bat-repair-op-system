@@ -6,6 +6,7 @@ import type { LoginRequestDTO } from "@/lib/auth/dto";
 import type { LoginResponseDTO } from "@/lib/auth/dto";
 import { prisma } from "@/lib/db";
 import { createSessionToken, getSessionCookieName, hashSessionToken, resolvePortal } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const allowedKeys = new Set<keyof LoginRequestDTO>(["identifier", "password", "portal"]);
 
@@ -29,6 +30,23 @@ async function parseBody(request: Request): Promise<Partial<LoginRequestDTO>> {
 
 export async function POST(request: Request) {
   try {
+    const rateLimit = checkRateLimit(request, {
+      keyPrefix: "auth-login",
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 10,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        fail("Too many login attempts. Try again later.", "RATE_LIMITED"),
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
+
     const data = await parseBody(request);
     const portal = resolvePortal(request, data.portal);
     const incomingKeys = Object.keys(data);
@@ -71,6 +89,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         fail("Invalid credentials.", "INVALID_CREDENTIALS"),
         { status: 401 }
+      );
+    }
+
+    if (
+      (portal === "OPERATION" &&
+        user.system !== "OPERATION" &&
+        user.system !== "BOTH") ||
+      (portal === "ACCOUNTING" &&
+        user.system !== "ACCOUNTING" &&
+        user.system !== "BOTH")
+    ) {
+      return NextResponse.json(
+        fail("Not authorized for this portal.", "FORBIDDEN"),
+        { status: 403 }
       );
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
+import { hasOperationAccess, requireOperationUser } from "@/lib/auth/operation";
 
 function parseNumber(value: string | null, fallback: number) {
   const num = value ? Number(value) : fallback;
@@ -23,7 +24,7 @@ function normalizeMobile(value: unknown) {
     return null;
   }
   const digits = value.replace(/\D/g, "");
-  if (digits.length !== 11 || !digits.startsWith("94")) {
+  if (!/^947\d{8}$/.test(digits)) {
     return null;
   }
   return digits;
@@ -31,6 +32,18 @@ function normalizeMobile(value: unknown) {
 
 export async function GET(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "clients")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseNumber(searchParams.get("page"), 1);
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
@@ -94,6 +107,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "clients")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const body = (await request.json()) as {
       name?: unknown;
       mobile?: unknown;
@@ -118,9 +143,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (mobile.length > 20) {
+    if (!mobile) {
       return NextResponse.json(
-        fail("Mobile number must be 20 characters or fewer.", "VALIDATION_ERROR"),
+        fail("Mobile number must be in 947XXXXXXXX format.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -156,6 +181,18 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "clients")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const body = (await request.json()) as {
       id?: unknown;
       name?: unknown;
@@ -184,7 +221,7 @@ export async function PATCH(request: Request) {
 
     if (!mobile) {
       return NextResponse.json(
-        fail("Mobile number must include country code 94 + 9 digits.", "VALIDATION_ERROR"),
+        fail("Mobile number must be in 947XXXXXXXX format.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -199,13 +236,6 @@ export async function PATCH(request: Request) {
     if (name.length > 80) {
       return NextResponse.json(
         fail("Customer name must be 80 characters or fewer.", "VALIDATION_ERROR"),
-        { status: 400 }
-      );
-    }
-
-    if (mobile.length > 20) {
-      return NextResponse.json(
-        fail("Mobile number must be 20 characters or fewer.", "VALIDATION_ERROR"),
         { status: 400 }
       );
     }
@@ -255,6 +285,18 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "clients")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const body = (await request.json()) as { id?: unknown };
     const id = typeof body.id === "string" ? body.id.trim() : "";
 

@@ -32,6 +32,11 @@ const MOBILE_PREFIX = "94";
 const MOBILE_PREFIX_DISPLAY = "+94";
 const MOBILE_DIGITS = 9;
 
+function isValidLocalMobile(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === MOBILE_DIGITS && digits.startsWith("7");
+}
+
 export default function ClientsPage() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -39,6 +44,7 @@ export default function ClientsPage() {
   const pageSize = 10;
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
+  const [mobileTouched, setMobileTouched] = useState(false);
   const [tier, setTier] = useState<(typeof tiers)[number]>("BRONZE");
   const [tierOpen, setTierOpen] = useState(false);
   const [items, setItems] = useState<Client[]>([]);
@@ -156,8 +162,8 @@ export default function ClientsPage() {
       setError("Name and mobile are required.");
       return;
     }
-    if (mobile.replace(/\D/g, "").length !== MOBILE_DIGITS) {
-      setError("Mobile number must be 9 digits.");
+    if (!isValidLocalMobile(mobile)) {
+      setError("Mobile number must be 9 digits and start with 7.");
       return;
     }
     if (
@@ -214,6 +220,7 @@ export default function ClientsPage() {
       setOpen(false);
       setName("");
       setMobile("");
+      setMobileTouched(false);
       setTier("BRONZE");
       setTierOpen(false);
       setEditingClient(null);
@@ -264,6 +271,15 @@ export default function ClientsPage() {
       setConfirmClient(null);
     }
   }
+
+  const mobileDigits = mobile.replace(/\D/g, "");
+  const showMobileError = mobileTouched && mobile.length > 0 && !isValidLocalMobile(mobile);
+  const mobileErrorMessage =
+    mobileDigits.length < MOBILE_DIGITS
+      ? "Mobile must be 9 digits."
+      : !mobileDigits.startsWith("7")
+        ? "Mobile must start with 7."
+        : "Enter a valid mobile number.";
 
   return (
     <>
@@ -392,6 +408,7 @@ export default function ClientsPage() {
                       setEditingClient(client);
                       setName(client.name);
                       setMobile(formatMobile(client.mobile));
+                      setMobileTouched(false);
                       setTier(client.tier);
                       setError(null);
                       setTierOpen(false);
@@ -479,7 +496,13 @@ export default function ClientsPage() {
               </label>
               <label className="grid gap-2 text-sm text-[var(--text-muted)]">
                 Mobile number
-                <div className="flex h-11 items-center rounded-2xl border border-[var(--stroke)] bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)]">
+                <div
+                  className={`flex h-11 items-center rounded-2xl border bg-[var(--panel-muted)] px-4 text-sm text-[var(--foreground)] ${
+                    showMobileError
+                      ? "border-rose-400/60"
+                      : "border-[var(--stroke)]"
+                  }`}
+                >
                   <span className="text-xs text-[var(--text-muted)]">
                     {MOBILE_PREFIX_DISPLAY}
                   </span>
@@ -492,12 +515,17 @@ export default function ClientsPage() {
                     onChange={(event) => {
                       const digits = event.target.value.replace(/\D/g, "");
                       setMobile(digits.slice(0, MOBILE_DIGITS));
+                      setMobileTouched(true);
                       if (error) {
                         setError(null);
                       }
                     }}
+                    onBlur={() => setMobileTouched(true)}
                   />
                 </div>
+                {showMobileError ? (
+                  <p className="text-xs text-rose-500">{mobileErrorMessage}</p>
+                ) : null}
               </label>
               <div className="grid gap-2 text-sm text-[var(--text-muted)]">
                 <span>Loyalty tier</span>
@@ -546,6 +574,7 @@ export default function ClientsPage() {
                     setOpen(false);
                     setName("");
                     setMobile("");
+                    setMobileTouched(false);
                     setTier("BRONZE");
                     setTierOpen(false);
                     setEditingClient(null);
@@ -561,7 +590,7 @@ export default function ClientsPage() {
                   disabled={
                     saving ||
                     !name.trim() ||
-                    mobile.replace(/\D/g, "").length !== MOBILE_DIGITS ||
+                    !isValidLocalMobile(mobile) ||
                     Boolean(
                       editingClient &&
                         name.trim().toLowerCase() ===

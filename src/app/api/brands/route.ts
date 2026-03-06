@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
+import { hasOperationAccess, requireOperationUser } from "@/lib/auth/operation";
 
 function parseNumber(value: string | null, fallback: number) {
   const num = value ? Number(value) : fallback;
@@ -9,6 +10,18 @@ function parseNumber(value: string | null, fallback: number) {
 
 export async function GET(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "brands")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseNumber(searchParams.get("page"), 1);
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
@@ -53,6 +66,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "brands")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const body = (await request.json()) as { name?: unknown };
 
     const name =
@@ -99,6 +124,18 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(currentUser, "brands")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const body = (await request.json()) as { id?: unknown; name?: unknown };
 
     const id = typeof body.id === "string" ? body.id.trim() : "";

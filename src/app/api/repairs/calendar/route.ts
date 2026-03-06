@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
+import { hasOperationAccess, requireOperationUser } from "@/lib/auth/operation";
 
 function parseMonth(value: string | null) {
   if (!value) {
@@ -20,6 +21,27 @@ function parseMonth(value: string | null) {
 
 export async function GET(request: Request) {
   try {
+    const currentUser = await requireOperationUser();
+    if (!currentUser) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    const canViewCalendar =
+      currentUser.role === "SUPER_ADMIN" ||
+      hasOperationAccess(currentUser, "dashboard") ||
+      hasOperationAccess(currentUser, "repairs");
+    if (!canViewCalendar) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+    if (currentUser.role !== "SUPER_ADMIN" && !currentUser.storeId) {
+      return NextResponse.json(fail("Store assignment required.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const monthParam = parseMonth(searchParams.get("month"));
     if (!monthParam) {
@@ -36,6 +58,9 @@ export async function GET(request: Request) {
     const counts: Record<string, number> = {};
     const repairs = await prisma.repair.findMany({
       where: {
+        ...(currentUser.role === "SUPER_ADMIN"
+          ? {}
+          : { storeId: currentUser.storeId as string }),
         estimatedDeliveryDate: {
           gte: start,
           lt: end,

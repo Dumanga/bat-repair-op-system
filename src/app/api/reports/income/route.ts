@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 import {
-  getPortalFromPath,
-  getSessionCookieName,
-  hashSessionToken,
-} from "@/lib/auth/session";
+  hasOperationAccess,
+  requireOperationUser,
+} from "@/lib/auth/operation";
 
 const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -27,59 +25,22 @@ function parseDateOnlyRange(date: string) {
   return { start, endExclusive };
 }
 
-async function requireUser(request: Request) {
-  const cookieStore = await cookies();
-  const portal = getPortalFromPath(new URL(request.url).pathname);
-  const token = cookieStore.get(getSessionCookieName(portal))?.value;
-
-  if (!token) {
-    return null;
-  }
-
-  const tokenHash = hashSessionToken(token);
-  const session = await prisma.session.findFirst({
-    where: {
-      tokenHash,
-      expiresAt: { gt: new Date() },
-    },
-    include: {
-      user: true,
-    },
-  });
-
-  if (!session?.user) {
-    return null;
-  }
-
-  if (
-    portal === "OPERATION" &&
-    session.user.system !== "OPERATION" &&
-    session.user.system !== "BOTH"
-  ) {
-    return null;
-  }
-  if (
-    portal === "ACCOUNTING" &&
-    session.user.system !== "ACCOUNTING" &&
-    session.user.system !== "BOTH"
-  ) {
-    return null;
-  }
-
-  return session.user;
-}
-
 export async function GET(request: Request) {
   try {
-    const user = await requireUser(request);
+    const user = await requireOperationUser();
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
       });
     }
 
-    if (user.role !== "SUPER_ADMIN" && !user.accessSettings) {
+    if (!hasOperationAccess(user, "settings")) {
       return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+    if (user.role !== "SUPER_ADMIN" && !user.storeId) {
+      return NextResponse.json(fail("Store assignment required.", "FORBIDDEN"), {
         status: 403,
       });
     }
@@ -113,6 +74,7 @@ export async function GET(request: Request) {
 
     const repairs = await prisma.repair.findMany({
       where: {
+        ...(user.role === "SUPER_ADMIN" ? {} : { storeId: user.storeId as string }),
         createdAt: {
           gte: fromRange.start,
           lt: toRange.endExclusive,

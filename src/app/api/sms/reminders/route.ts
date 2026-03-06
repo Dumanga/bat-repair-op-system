@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 import {
-  getPortalFromPath,
-  getSessionCookieName,
-  hashSessionToken,
-} from "@/lib/auth/session";
+  canAccessStore,
+  hasOperationAccess,
+  requireOperationUser,
+} from "@/lib/auth/operation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import {
   buildDeliveryReminderMessage,
   buildTrackingUrl,
@@ -61,52 +61,22 @@ function getBaseUrlForTracking(request: Request) {
   return new URL(request.url).origin;
 }
 
-async function requireUser(request: Request) {
-  const cookieStore = await cookies();
-  const portal = getPortalFromPath(new URL(request.url).pathname);
-  const token = cookieStore.get(getSessionCookieName(portal))?.value;
-
-  if (!token) {
-    return null;
-  }
-
-  const tokenHash = hashSessionToken(token);
-  const session = await prisma.session.findFirst({
-    where: {
-      tokenHash,
-      expiresAt: { gt: new Date() },
-    },
-    include: { user: true },
-  });
-
-  if (!session?.user) {
-    return null;
-  }
-
-  if (
-    portal === "OPERATION" &&
-    session.user.system !== "OPERATION" &&
-    session.user.system !== "BOTH"
-  ) {
-    return null;
-  }
-  if (
-    portal === "ACCOUNTING" &&
-    session.user.system !== "ACCOUNTING" &&
-    session.user.system !== "BOTH"
-  ) {
-    return null;
-  }
-
-  return session.user;
-}
-
 export async function GET(request: Request) {
   try {
-    const user = await requireUser(request);
+    const user = await requireOperationUser();
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
+      });
+    }
+    if (!hasOperationAccess(user, "sms")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+    if (user.role !== "SUPER_ADMIN" && !user.storeId) {
+      return NextResponse.json(fail("Store assignment required.", "FORBIDDEN"), {
+        status: 403,
       });
     }
 
@@ -125,6 +95,7 @@ export async function GET(request: Request) {
         type: REMINDER_TYPE,
         status: "SENT",
         repair: {
+          ...(user.role === "SUPER_ADMIN" ? {} : { storeId: user.storeId as string }),
           estimatedDeliveryDate: {
             gte: parsed.start,
             lt: parsed.endExclusive,
@@ -148,11 +119,33 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser(request);
+    const user = await requireOperationUser();
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
       });
+    }
+    if (!hasOperationAccess(user, "sms")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
+    const rateLimit = checkRateLimit(request, {
+      keyPrefix: "sms-reminder-send",
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 30,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        fail("Too many SMS requests. Try again later.", "RATE_LIMITED"),
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
     }
 
     const body = (await request.json()) as {
@@ -173,6 +166,11 @@ export async function POST(request: Request) {
     if (!repair) {
       return NextResponse.json(fail("Repair not found.", "NOT_FOUND"), {
         status: 404,
+      });
+    }
+    if (!canAccessStore(user, repair.storeId)) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
       });
     }
 

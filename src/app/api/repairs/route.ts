@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import crypto from "crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
-import { getPortalFromPath, getSessionCookieName, hashSessionToken } from "@/lib/auth/session";
+import {
+  canAccessStore,
+  hasOperationAccess,
+  requireOperationUser,
+} from "@/lib/auth/operation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import {
   buildRepairCreatedMessage,
   buildRepairRescheduledMessage,
@@ -31,48 +35,6 @@ type RepairStatus = (typeof statusOrder)[number];
 function parseNumber(value: string | null, fallback: number) {
   const num = value ? Number(value) : fallback;
   return Number.isFinite(num) && num > 0 ? num : fallback;
-}
-
-async function requireUser(request: Request) {
-  const cookieStore = await cookies();
-  const portal = getPortalFromPath(new URL(request.url).pathname);
-  const token = cookieStore.get(getSessionCookieName(portal))?.value;
-
-  if (!token) {
-    return null;
-  }
-
-  const tokenHash = hashSessionToken(token);
-  const session = await prisma.session.findFirst({
-    where: {
-      tokenHash,
-      expiresAt: { gt: new Date() },
-    },
-    include: {
-      user: true,
-    },
-  });
-
-  if (!session?.user) {
-    return null;
-  }
-
-  if (
-    portal === "OPERATION" &&
-    session.user.system !== "OPERATION" &&
-    session.user.system !== "BOTH"
-  ) {
-    return null;
-  }
-  if (
-    portal === "ACCOUNTING" &&
-    session.user.system !== "ACCOUNTING" &&
-    session.user.system !== "BOTH"
-  ) {
-    return null;
-  }
-
-  return session.user;
 }
 
 function generateTrackingToken() {
@@ -121,6 +83,18 @@ function getBaseUrlForTracking(request: Request) {
 
 export async function GET(request: Request) {
   try {
+    const user = await requireOperationUser();
+    if (!user) {
+      return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
+        status: 401,
+      });
+    }
+    if (!hasOperationAccess(user, "repairs")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const page = parseNumber(searchParams.get("page"), 1);
     const pageSize = Math.min(parseNumber(searchParams.get("pageSize"), 10), 50);
@@ -166,7 +140,19 @@ export async function GET(request: Request) {
       where.status = { not: "DELIVERED" };
     }
     if (storeId) {
+      if (!canAccessStore(user, storeId)) {
+        return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+          status: 403,
+        });
+      }
       where.storeId = storeId;
+    } else if (user.role !== "SUPER_ADMIN") {
+      if (!user.storeId) {
+        return NextResponse.json(fail("Store assignment required.", "FORBIDDEN"), {
+          status: 403,
+        });
+      }
+      where.storeId = user.storeId;
     }
 
     const [items, total] = await Promise.all([
@@ -223,11 +209,33 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await requireUser(request);
+    const user = await requireOperationUser();
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
       });
+    }
+    if (!hasOperationAccess(user, "repairs")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
+    const smsRateLimit = checkRateLimit(request, {
+      keyPrefix: "sms-repair-create",
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 30,
+    });
+    if (!smsRateLimit.allowed) {
+      return NextResponse.json(
+        fail("Too many SMS requests. Try again later.", "RATE_LIMITED"),
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(smsRateLimit.retryAfterSeconds),
+          },
+        }
+      );
     }
 
     const body = (await request.json()) as {
@@ -271,6 +279,11 @@ export async function POST(request: Request) {
         fail("Client, brand, store, and intake type are required.", "VALIDATION_ERROR"),
         { status: 400 }
       );
+    }
+    if (!canAccessStore(user, storeId)) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
     }
     if (
       !Number.isFinite(advanceAmount) ||
@@ -547,11 +560,33 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await requireUser(request);
+    const user = await requireOperationUser();
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
       });
+    }
+    if (!hasOperationAccess(user, "repairs")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
+
+    const smsRateLimit = checkRateLimit(request, {
+      keyPrefix: "sms-repair-update",
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 40,
+    });
+    if (!smsRateLimit.allowed) {
+      return NextResponse.json(
+        fail("Too many SMS requests. Try again later.", "RATE_LIMITED"),
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(smsRateLimit.retryAfterSeconds),
+          },
+        }
+      );
     }
 
     const body = (await request.json()) as {
@@ -621,6 +656,11 @@ export async function PATCH(request: Request) {
         status: 404,
       });
     }
+    if (!canAccessStore(user, repair.storeId)) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
+      });
+    }
 
     const updateData: Record<string, unknown> = {};
     const audits: Array<{ eventType: string; oldValue: string | null; newValue: string | null }> = [];
@@ -642,6 +682,11 @@ export async function PATCH(request: Request) {
     }
 
     if (storeId && storeId !== repair.storeId) {
+      if (!canAccessStore(user, storeId)) {
+        return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+          status: 403,
+        });
+      }
       const store = await prisma.store.findUnique({ where: { id: storeId } });
       if (!store) {
         return NextResponse.json(
@@ -1063,10 +1108,15 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const user = await requireUser(request);
+    const user = await requireOperationUser();
     if (!user) {
       return NextResponse.json(fail("Not authenticated.", "UNAUTHORIZED"), {
         status: 401,
+      });
+    }
+    if (!hasOperationAccess(user, "repairs")) {
+      return NextResponse.json(fail("Forbidden.", "FORBIDDEN"), {
+        status: 403,
       });
     }
 

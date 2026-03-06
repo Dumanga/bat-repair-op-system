@@ -750,3 +750,29 @@
 ## 2026-03-04 14:05
 - Fixed critical Repairs PATCH bug where status-only updates could reset dvanceAmount to   when dvanceAmount was omitted from payload.
 - PATCH now updates/validates advance only when the field is explicitly provided, preserving existing advance values during status transitions and other partial updates.
+
+## 2026-03-06 09:40
+- Added shared operational auth/RBAC helper in `src/lib/auth/operation.ts` and enforced API-level authentication + module access checks across operational endpoints:
+  - `/api/users`
+  - `/api/clients`
+  - `/api/brands`
+  - `/api/stores`
+  - `/api/repair-types`
+  - `/api/repairs`
+  - `/api/repairs/calendar`
+  - `/api/repairs/next-bill`
+- Implemented store-scoped authorization for non-super-admin users (server-side) so cross-store reads/updates are blocked in:
+  - Repairs list/create/update
+  - SMS reminders list/send
+  - Income report generation
+- Added reusable in-memory IP rate limiter (`src/lib/security/rate-limit.ts`) and applied it to:
+  - `/api/auth/login` (login brute-force protection)
+  - Repair create/update SMS flows
+  - SMS reminder send flow
+- Hardened login portal checks in `/api/auth/login` so users cannot establish a session for a portal they are not assigned to.
+- Tightened client mobile validation to strict Sri Lankan mobile pattern `947XXXXXXXX` (must start with `947`) in `/api/clients`.
+- Improved client modal UX with real-time mobile validation feedback in `src/app/operation/admin/clients/page.tsx`:
+  - Inline error text while typing/blur
+  - Red invalid input state
+  - Clear messages for short length vs wrong starting digit
+- Verified with `npm run lint` and `npm run build`: both pass (only pre-existing non-blocking warnings remain).
