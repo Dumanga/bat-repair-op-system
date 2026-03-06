@@ -83,6 +83,7 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        createdAt: true,
         billNo: true,
         status: true,
         totalAmount: true,
@@ -108,6 +109,7 @@ export async function GET(request: Request) {
       const balance = Math.max(0, repair.totalAmount - receivedAmount);
       return {
         id: repair.id,
+        date: repair.createdAt.toISOString().slice(0, 10),
         billNo: repair.billNo,
         storeName: repair.store.name,
         clientName: repair.client.name,

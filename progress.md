@@ -810,3 +810,19 @@
 
 ## 2026-03-06 11:10
 - Removed `Forgot password?` text/link from operation login page UI (`src/app/operation/login/page.tsx`).
+
+## 2026-03-07 09:25
+- Enhanced Income Report table with frontend single-column sorting controls in `src/app/operation/admin/reports/page.tsx`.
+- Added sortable headers (with arrow indicators) for:
+  - Date
+  - Bill no
+  - Total amount
+  - Amount received
+  - Balance
+- Implemented sort behavior:
+  - First click sorts ascending.
+  - Re-click toggles ascending/descending.
+  - Clicking a different sortable column resets previous sort and activates only the new column.
+- Added active-sort helper text: `Filtered according to: <Column> (ASC/DESC)`.
+- Updated print flow to use the currently sorted report rows.
+- Verified with targeted ESLint check for reports page.

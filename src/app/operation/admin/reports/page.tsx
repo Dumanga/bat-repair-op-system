@@ -5,6 +5,7 @@ import { printIncomeReport } from "@/lib/print/income-report";
 
 type IncomeReportRow = {
   id: string;
+  date: string;
   billNo: string;
   storeName: string;
   clientName: string;
@@ -29,6 +30,9 @@ type IncomeReportResponse = {
   };
 };
 
+type SortKey = "date" | "billNo" | "totalAmount" | "receivedAmount" | "balance";
+type SortDirection = "asc" | "desc";
+
 export default function SettingsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -36,6 +40,8 @@ export default function SettingsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [reportData, setReportData] = useState<IncomeReportResponse | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const canGenerate = fromDate.trim() !== "" && toDate.trim() !== "" && !loading;
 
@@ -50,6 +56,67 @@ export default function SettingsPage() {
     }
     return reportData.totals;
   }, [reportData]);
+
+  const sortedRows = useMemo(() => {
+    if (!reportData) {
+      return [];
+    }
+    const rows = [...reportData.rows];
+    if (!sortKey) {
+      return rows;
+    }
+
+    rows.sort((a, b) => {
+      let compareValue = 0;
+      if (sortKey === "date") {
+        compareValue = new Date(a.date).getTime() - new Date(b.date).getTime();
+      } else if (sortKey === "billNo") {
+        compareValue = a.billNo.localeCompare(b.billNo, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      } else if (sortKey === "totalAmount") {
+        compareValue = a.totalAmount - b.totalAmount;
+      } else if (sortKey === "receivedAmount") {
+        compareValue = a.receivedAmount - b.receivedAmount;
+      } else if (sortKey === "balance") {
+        compareValue = a.balance - b.balance;
+      }
+      return sortDirection === "asc" ? compareValue : -compareValue;
+    });
+
+    return rows;
+  }, [reportData, sortDirection, sortKey]);
+
+  const sortLabel = useMemo(() => {
+    if (!sortKey) {
+      return "";
+    }
+    const keyLabelMap: Record<SortKey, string> = {
+      date: "Date",
+      billNo: "Bill no",
+      totalAmount: "Total amount",
+      receivedAmount: "Amount received",
+      balance: "Balance",
+    };
+    return `${keyLabelMap[sortKey]} (${sortDirection.toUpperCase()})`;
+  }, [sortDirection, sortKey]);
+
+  function handleSort(column: SortKey) {
+    if (sortKey === column) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(column);
+    setSortDirection("asc");
+  }
+
+  function sortArrow(column: SortKey) {
+    if (sortKey !== column) {
+      return "↕";
+    }
+    return sortDirection === "asc" ? "↑" : "↓";
+  }
 
   async function handleGenerateReport() {
     if (!fromDate || !toDate) {
@@ -77,6 +144,8 @@ export default function SettingsPage() {
       }
 
       setReportData(payload.data);
+      setSortKey(null);
+      setSortDirection("asc");
       setReportGenerated(true);
     } catch (error) {
       setLoadError(
@@ -96,7 +165,7 @@ export default function SettingsPage() {
       fromDate: reportData.fromDate,
       toDate: reportData.toDate,
       generatedAt: new Date(),
-      rows: reportData.rows.map((row) => ({
+      rows: sortedRows.map((row) => ({
         billNo: row.billNo,
         storeName: row.storeName,
         clientName: row.clientName,
@@ -185,31 +254,78 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          {sortKey ? (
+            <p className="mb-3 text-xs text-[var(--text-muted)]">
+              Filtered according to: {sortLabel}
+            </p>
+          ) : null}
           <div className="overflow-x-auto rounded-2xl border border-[var(--stroke)]">
             <table className="min-w-full text-sm">
               <thead className="bg-[var(--panel-muted)] text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                 <tr>
-                  <th className="px-4 py-3 text-left">Bill no</th>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-left"
+                      onClick={() => handleSort("date")}
+                    >
+                      Date <span>{sortArrow("date")}</span>
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-left"
+                      onClick={() => handleSort("billNo")}
+                    >
+                      Bill no <span>{sortArrow("billNo")}</span>
+                    </button>
+                  </th>
                   <th className="px-4 py-3 text-left">Store</th>
                   <th className="px-4 py-3 text-left">Client name</th>
-                  <th className="px-4 py-3 text-right">Total amount</th>
-                  <th className="px-4 py-3 text-right">Amount received</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
+                  <th className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-right"
+                      onClick={() => handleSort("totalAmount")}
+                    >
+                      Total amount <span>{sortArrow("totalAmount")}</span>
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-right"
+                      onClick={() => handleSort("receivedAmount")}
+                    >
+                      Amount received <span>{sortArrow("receivedAmount")}</span>
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-right"
+                      onClick={() => handleSort("balance")}
+                    >
+                      Balance <span>{sortArrow("balance")}</span>
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {!reportData || reportData.rows.length === 0 ? (
+                {!reportData || sortedRows.length === 0 ? (
                   <tr>
                     <td
                       className="px-4 py-6 text-sm text-[var(--text-muted)]"
-                      colSpan={6}
+                      colSpan={7}
                     >
                       No repairs found for the selected date range.
                     </td>
                   </tr>
                 ) : (
-                  reportData.rows.map((row) => (
+                  sortedRows.map((row) => (
                     <tr key={row.id} className="border-t border-[var(--stroke)]">
+                      <td className="px-4 py-3">{row.date}</td>
                       <td className="px-4 py-3 font-semibold">{row.billNo}</td>
                       <td className="px-4 py-3">{row.storeName}</td>
                       <td className="px-4 py-3">{row.clientName}</td>
@@ -231,6 +347,7 @@ export default function SettingsPage() {
                   <td className="px-4 py-3 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
                     Overall
                   </td>
+                  <td className="px-4 py-3" />
                   <td className="px-4 py-3" />
                   <td className="px-4 py-3" />
                   <td className="px-4 py-3 text-right font-semibold">
