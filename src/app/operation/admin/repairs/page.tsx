@@ -1176,7 +1176,7 @@ export default function RepairsPage() {
     }
     const hasSelectedItem = repairItems.some((item) => item.repairTypeId);
     if (!hasSelectedItem) {
-      return "At least one repair item with a price is required.";
+      return "At least one repair item is required.";
     }
     const hasBlankTypeItem = repairItems.some((item) => !item.repairTypeId.trim());
     if (hasBlankTypeItem) {
@@ -1184,14 +1184,14 @@ export default function RepairsPage() {
     }
     const hasIncompleteItem = repairItems.some(
       (item) =>
-        (item.repairTypeId && Number(item.price) <= 0) ||
+        (item.repairTypeId &&
+          (item.price === "" ||
+            !Number.isFinite(Number(item.price)) ||
+            Number(item.price) < 0)) ||
         (!item.repairTypeId && item.price)
     );
     if (hasIncompleteItem) {
-      return "Each selected repair item must have a price.";
-    }
-    if (computedTotalAmount <= 0) {
-      return "Total amount must be greater than 0.";
+      return "Each selected repair item must have a valid price (0 or more).";
     }
     return null;
   }
@@ -1297,7 +1297,13 @@ export default function RepairsPage() {
       const primaryRepairTypeId =
         repairItems.find((item) => item.repairTypeId)?.repairTypeId ?? null;
       const itemsPayload = repairItems
-        .filter((item) => item.repairTypeId && Number(item.price) > 0)
+        .filter(
+          (item) =>
+            item.repairTypeId &&
+            item.price !== "" &&
+            Number.isFinite(Number(item.price)) &&
+            Number(item.price) >= 0
+        )
         .map((item) => ({
           repairTypeId: item.repairTypeId,
           price: Number(item.price),
@@ -1354,7 +1360,13 @@ export default function RepairsPage() {
           name: selectedStore.name,
         },
         items: repairItems
-          .filter((item) => item.repairTypeId && Number(item.price) > 0)
+          .filter(
+            (item) =>
+              item.repairTypeId &&
+              item.price !== "" &&
+              Number.isFinite(Number(item.price)) &&
+              Number(item.price) >= 0
+          )
           .map((item, index) => ({
             id: item.id || `item-${index + 1}`,
             repairTypeId: item.repairTypeId,
@@ -1414,7 +1426,13 @@ export default function RepairsPage() {
       const primaryRepairTypeId =
         repairItems.find((item) => item.repairTypeId)?.repairTypeId ?? null;
       const itemsPayload = repairItems
-        .filter((item) => item.repairTypeId && Number(item.price) > 0)
+        .filter(
+          (item) =>
+            item.repairTypeId &&
+            item.price !== "" &&
+            Number.isFinite(Number(item.price)) &&
+            Number(item.price) >= 0
+        )
         .map((item) => ({
           repairTypeId: item.repairTypeId,
           price: Number(item.price),

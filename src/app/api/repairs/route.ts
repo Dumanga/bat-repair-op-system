@@ -321,7 +321,7 @@ export async function POST(request: Request) {
             : typeof record.price === "string"
               ? Number(record.price)
               : NaN;
-        if (!repairTypeId || !Number.isFinite(price) || price <= 0) {
+        if (!repairTypeId || !Number.isFinite(price) || price < 0) {
           return null;
         }
         return { repairTypeId, price: Math.round(price) };
@@ -336,12 +336,6 @@ export async function POST(request: Request) {
     }
 
     const totalAmount = parsedItems.reduce((sum, item) => sum + item.price, 0);
-    if (totalAmount <= 0) {
-      return NextResponse.json(
-        fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
-        { status: 400 }
-      );
-    }
     if (advanceAmount > totalAmount) {
       return NextResponse.json(
         fail("Advance amount cannot exceed total amount.", "VALIDATION_ERROR"),
@@ -768,7 +762,7 @@ export async function PATCH(request: Request) {
               : typeof record.price === "string"
                 ? Number(record.price)
                 : NaN;
-          if (!repairTypeId || !Number.isFinite(price) || price <= 0) {
+          if (!repairTypeId || !Number.isFinite(price) || price < 0) {
             return null;
           }
           return { repairTypeId, price: Math.round(price) };
@@ -798,12 +792,6 @@ export async function PATCH(request: Request) {
       }
 
       const totalAmount = parsedItems.reduce((sum, item) => sum + item.price, 0);
-      if (totalAmount <= 0) {
-        return NextResponse.json(
-          fail("Total amount must be a positive number.", "VALIDATION_ERROR"),
-          { status: 400 }
-        );
-      }
       const effectiveAdvanceAmount = advanceAmount ?? repair.advanceAmount;
       if (effectiveAdvanceAmount > totalAmount) {
         return NextResponse.json(

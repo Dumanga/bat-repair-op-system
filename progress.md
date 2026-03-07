@@ -834,3 +834,15 @@
 - Updated `src/app/operation/admin/brands/page.tsx` KPI to consume API-provided latest brand value.
 - Changed KPI helper text from `Latest updated brand` to `Latest added brand`.
 - Verified with targeted ESLint checks for brands API/UI files.
+
+## 2026-03-07 10:40
+- Updated Repairs create/update validation to support free repair lines (`price = 0`) and zero-total repairs safely.
+- Backend (`src/app/api/repairs/route.ts`):
+  - Allowed item prices `>= 0` (reject negatives only).
+  - Removed strict `totalAmount > 0` requirement to allow total `0` flows.
+  - Kept existing guard that advance cannot exceed total.
+- Frontend (`src/app/operation/admin/repairs/page.tsx`):
+  - Form validation now accepts `0` prices as valid.
+  - Removed total-must-be-positive blocking message.
+  - Updated create/update payload filters to include zero-price selected items.
+- Result: repairs can be created/updated for free jobs without breaking existing status/SMS/audit/report flows.
