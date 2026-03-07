@@ -826,3 +826,11 @@
 - Added active-sort helper text: `Filtered according to: <Column> (ASC/DESC)`.
 - Updated print flow to use the currently sorted report rows.
 - Verified with targeted ESLint check for reports page.
+
+## 2026-03-07 10:05
+- Fixed Bat Brands `Recently added` KPI accuracy.
+- Root cause: KPI was using `items[0]` from name-sorted list (`A-Z`), which did not represent most recently created brand.
+- Updated `GET /api/brands` to return dedicated latest-created brand metadata (`latestBrandName`, `latestBrandCreatedAt`) ordered by `createdAt desc`.
+- Updated `src/app/operation/admin/brands/page.tsx` KPI to consume API-provided latest brand value.
+- Changed KPI helper text from `Latest updated brand` to `Latest added brand`.
+- Verified with targeted ESLint checks for brands API/UI files.

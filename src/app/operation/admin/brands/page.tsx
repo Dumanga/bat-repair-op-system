@@ -12,6 +12,8 @@ type Brand = {
 type BrandResponse = {
   items: Brand[];
   total: number;
+  latestBrandName: string | null;
+  latestBrandCreatedAt: string | null;
   page: number;
   pageSize: number;
 };
@@ -26,6 +28,7 @@ export default function BatBrandsPage() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Brand[]>([]);
   const [total, setTotal] = useState(0);
+  const [latestBrandName, setLatestBrandName] = useState<string | null>(null);
   const [newBrand, setNewBrand] = useState("");
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -72,6 +75,7 @@ export default function BatBrandsPage() {
       if (requestIdRef.current === currentRequestId) {
         setItems(payload.data.items);
         setTotal(payload.data.total);
+        setLatestBrandName(payload.data.latestBrandName);
       }
     } catch (err) {
       if (controller.signal.aborted) {
@@ -194,10 +198,10 @@ export default function BatBrandsPage() {
             Recently added
           </p>
           <p className="mt-3 text-2xl font-semibold">
-            {items[0]?.name ?? "-"}
+            {latestBrandName ?? "-"}
           </p>
           <p className="mt-2 text-xs text-[var(--text-muted)]">
-            Latest updated brand
+            Latest added brand
           </p>
         </div>
       </div>

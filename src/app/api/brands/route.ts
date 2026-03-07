@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         }
       : {};
 
-    const [items, total] = await Promise.all([
+    const [items, total, latestBrand] = await Promise.all([
       prisma.brand.findMany({
         where,
         orderBy: { name: "asc" },
@@ -43,6 +43,10 @@ export async function GET(request: Request) {
         take: pageSize,
       }),
       prisma.brand.count({ where }),
+      prisma.brand.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { name: true, createdAt: true },
+      }),
     ]);
 
     return NextResponse.json(
@@ -50,6 +54,8 @@ export async function GET(request: Request) {
         {
           items,
           total,
+          latestBrandName: latestBrand?.name ?? null,
+          latestBrandCreatedAt: latestBrand?.createdAt ?? null,
           page,
           pageSize,
         },
