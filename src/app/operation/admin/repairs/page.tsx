@@ -163,6 +163,7 @@ function buildReceiptPayload(repair: RepairItem): RepairReceiptData {
     physicalBillNo: repair.physicalBillNo ?? null,
     description: repair.description ?? null,
     issuedAt: repair.createdAt ? new Date(repair.createdAt) : new Date(),
+    estimatedDeliveryDate: repair.estimatedDeliveryDate,
     clientName: repair.client.name,
     clientMobile: formatMobile(repair.client.mobile),
     brandName: repair.brand.name,
