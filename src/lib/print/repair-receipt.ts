@@ -121,6 +121,9 @@ function buildReceiptHtml(data: RepairReceiptData) {
     <div class="rule"></div>
     <div class="repair-client">${escapeHtml(data.clientName)}</div>
     <div class="repair-mobile">${escapeHtml(data.clientMobile)}</div>
+    <div class="repair-created"><strong>Created Date:</strong> ${escapeHtml(
+      formatDate(data.issuedAt)
+    )}</div>
     <div class="repair-delivery"><strong>Estimated Delivery:</strong> ${escapeHtml(
       estimatedDeliveryValue || "-"
     )}</div>
@@ -192,19 +195,25 @@ function buildReceiptHtml(data: RepairReceiptData) {
           line-height: 1.05;
         }
         .repair-client {
-          font-size: 17px;
+          font-size: 20px;
           font-weight: 700;
           line-height: 1.3;
           margin-top: 2px;
         }
         .repair-mobile {
-          font-size: 15px;
+          font-size: 20px;
           font-weight: 700;
           line-height: 1.2;
           margin-top: 1px;
         }
         .repair-delivery {
-          font-size: 15px;
+          font-size: 20px;
+          font-weight: 700;
+          line-height: 1.25;
+          margin-top: 4px;
+        }
+        .repair-created {
+          font-size: 20px;
           font-weight: 700;
           line-height: 1.25;
           margin-top: 4px;
@@ -247,17 +256,17 @@ function buildReceiptHtml(data: RepairReceiptData) {
           letter-spacing: 0.5px;
         }
         .repair-balance {
-          font-size: 15px;
+          font-size: 20px;
           font-weight: 700;
-          margin: 3px 0;
+          margin: 5px 0;
         }
         .repair-description-title {
-          font-size: 15px;
+          font-size: 20px;
           font-weight: 700;
           margin: 2px 0 0 0;
         }
         .repair-description-body {
-          font-size: 14px;
+          font-size: 20px;
           font-weight: 700;
           line-height: 1.3;
           margin: 2px 0;
