@@ -4,6 +4,8 @@
 **Version:** 1.0  
 **Date:** 2026-02-10  
 
+> Current note as of 2026-03-11: The Operational Management System is completed and deployed on a DigitalOcean droplet. Future work must not break, alter, or risk existing operational flows, logic, permissions, SMS behavior, reporting, printing, or store-scoped behavior. If any requested change could affect the operational system, user confirmation must be obtained first.
+
 ---
 
 ## 0. Execution Rule (Critical)

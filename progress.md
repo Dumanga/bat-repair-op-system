@@ -1,5 +1,9 @@
 # Progress Log
 
+## 2026-03-11 23:00
+- Highlighted current status: the Operational Management System is completed and deployed on a DigitalOcean droplet.
+- Added a standing instruction for future work: do not change or risk operational-system flows or logic without explicit user approval whenever a request could affect them.
+
 ## 2026-02-01 23:54
 - Initialized Next.js app with TypeScript, Tailwind, App Router, and src directory.
 - Created database `doctor_of_bat_op` and configured Prisma schema for users/sessions.
